@@ -3,7 +3,7 @@
 日本語の講座の一部の文が中国語の声で読まれる問題を、講座の言語を記録して読み上げに使うことで根本から直す。
 
 - 作成: 2026-11-02
-- 状態: 第 1 段階 実装済み (フォーク takachino/OpenMAIC の main にコミット)。次は Lemonade (Kokoro) の準備
+- 状態: 第 1 段階 実装済み (フォーク takachino/OpenMAIC の main にコミット)。TTS は Kokoro-FastAPI に切り替え、利用者が講座で確かめた。次回は第 2 段階から
 
 ## 背景
 
@@ -99,11 +99,38 @@
 
 手順:
 
-1. [ ] 利用者が `brew install --cask lemonade-server` で入れる (中身は公式の `Lemonade-<version>-Darwin.pkg`。Windows ではリリースの MSI)
-2. [ ] `lemonade status` でサーバーを確認し、`lemonade pull kokoro-v1` (または `lemonade run kokoro-v1`) でモデルを用意する
-3. [ ] `curl` で日本語の文を `jf_alpha` で合成し、無音でないことと読み方 (利用者が聞く) を確かめる
-4. [ ] `openmaic.yml` の `tts` スロットを Lemonade にし、講座で確認する
-5. [ ] 日本語が使えない場合の代替を検討する (日本語対応の Kokoro サーバーをカスタムの OpenAI 互換プロバイダーとして使う、など)
+1. [x] 利用者が `brew install --cask lemonade-server` で入れる (中身は公式の `Lemonade-<version>-Darwin.pkg`。Windows ではリリースの MSI)
+2. [x] サーバーを確認し (ポート 13305)、`lemonade backends install kokoro:metal` と `lemonade pull kokoro-v1` でバックエンドとモデルを用意する
+3. [x] 日本語の文を `jf_alpha` と `jm_kumo` で合成する → **漢字を読めない** (下記)
+4. [x] (Lemonade は見送り) `openmaic.yml` の `tts` スロットを Kokoro-FastAPI にした (下記)
+5. [x] 日本語が使えない場合の代替を検討する → Kokoro-FastAPI を採用 (下記)
+6. [x] 利用者が開発サーバーを再起動し、講座で聞いて確かめた。シーンの音声をまとめて作り直すボタン (タイムラインの「全音声生成」) は、エディター (プロモード) の中にある。エディターは機能フラグで既定では無効なので、利用者が `.env.local` の `NEXT_PUBLIC_MAIC_EDITOR_ENABLED=true` を有効にした。そのうえで「変数とデータ型」の 6 行の音声を作り、問題がないことを確かめた。ほかの 12 シーンはまだ音声がない。
+
+結果 (2026-11-02):
+
+- 合成は成功し、無音でもない。ただし漢字を含む日本語は、自然な長さの約 3 倍になる。たとえば「変数は箱です。」は 5.2 秒・10 区間で、同じ文をかなで書くと 2.0 秒・2 区間。
+- 原因: Lemonade の Kokoro は Kokoros (Rust 実装) で、音素変換に espeak-ng を使う。声の接頭辞 (`jf_`) から日本語 (`ja`) は選ばれているが、espeak-ng の日本語は漢字の読みを持たないので、漢字を正しく読めない。かなだけの文は自然に読める。
+- 使えない理由: 講座の原稿は漢字かな交じりなので、このままでは使えない。漢字をかなに直してから送る方法は、辞書を使う形態素解析が要り、読みの精度も落ちるので採らない。
+
+代替の候補:
+
+| 候補 | 日本語 | OpenMAIC 側 | 動く環境 |
+|---|---|---|---|
+| Kokoro-FastAPI (Docker の CPU イメージ) | 音素変換が misaki (日本語は OpenJTalk 系) で漢字を読める。README の確認で `jf_alpha` の文字誤り率は 0.000 | OpenAI 互換 (`/v1/audio/speech`、ポート 8880) なので、コード変更なしか設定だけで使える見込み | `linux/amd64` と `linux/arm64` のイメージがあり、Mac と WSL2 の両方で動く |
+| VOICEVOX エンジン (Docker の CPU イメージ) | 日本語専用で品質が高い | API が `/audio_query` → `/synthesis` の 2 段で OpenAI 互換ではないので、プロバイダーのモジュールを新しく作る必要がある。声ごとに利用規約 (クレジット表記) がある | `linux/amd64` と `linux/arm64` のイメージがあり、両方で動く |
+| ブラウザ読み上げのまま | 第 1 段階で直した。OS の日本語音声 (macOS の Kyoko など) は漢字を読める | 変更なし | OS とブラウザしだい |
+
+Kokoro-FastAPI の検証 (2026-11-02、採用):
+
+- 起動: `docker run -d --name kokoro-fastapi --restart unless-stopped -p 127.0.0.1:8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest` (イメージは展開後 4.54GB)。作成後に `docker update --restart unless-stopped` で自動起動にした。Docker Desktop の起動時に一緒に立ち上がる。
+- Lemonade: TTS には使わないが、利用者の判断で残す (音声認識などほかの用途のため)。
+- 読みの確認: `/dev/phonemize` で漢字の読みが正しいことを確かめた (「変数は箱です。」→ `heɴsɨː βa hako desɨ`、「正解！」→ `seːkai`)。
+- 長さの比較: 「変数は箱です。」1.5 秒 (Lemonade 5.2 秒)、問題の文 10.5 秒 (同 28.7 秒)、「正解！」1.1 秒 (同 2.7 秒)。
+- 合成時間: CPU で 1 文 0.4〜3.2 秒。
+- アプリ経由: OpenMAIC の `generateTTS` (`lemonade-tts` のアダプター) から呼んでも同じ結果。
+- 設定: `openmaic.yml` に `kokoro` プロバイダーを足した (`preset: lemonade-tts`、`baseUrl: http://localhost:8880/v1`、モデル `kokoro`、既定の声 `jf_alpha`、日本語の声 5 つと英語の声 2 つ)。`tts` スロットを `kokoro:kokoro` にした。アプリの設定パーサーで検証済み。
+- 声の注意: Kokoro-FastAPI は声の接頭辞で発音の規則を選ぶ。英語の講座も既定では `jf_alpha` で読まれるので、講座の言語に合わせた声の選択は第 2 段階で扱う。
+- 既存の講座の注意: 「Python入門」のようにブラウザ読み上げで作った講座は音声を持たない。サーバー側 TTS では無音の待ち時間になるので、エディターでシーンごとに音声を作り直す。
 
 ## 第 2 段階: サーバー側 TTS
 
@@ -130,3 +157,7 @@
 - 2026-11-02: 分析と計画を作成。
 - 2026-11-02: 第 1 段階を TDD で実装し、全体確認まで終えた。
 - 2026-11-02: 本家の最新 (v1.3.1) に早送りし、フォークの main にコミットした。Lemonade は `brew install --cask lemonade-server` (公式の .pkg を入れる cask) で入れてもらう。
+- 2026-11-02: Lemonade の Kokoro で日本語を試した。漢字を読めないため、代替を検討した。
+- 2026-11-02: Kokoro-FastAPI を Docker で動かし、日本語を正しく読めることを確かめた。`openmaic.yml` の TTS を Kokoro-FastAPI にした。
+- 2026-11-02: 利用者がエディターで「変数とデータ型」の音声を作り直し、講座での動作に問題がないことを確かめた。
+- 2026-11-02: Kokoro-FastAPI のコンテナを自動起動にした。Lemonade は残す。次回は第 2 段階から。候補として、再生時に音声のない行をその場で合成する機能もある。
