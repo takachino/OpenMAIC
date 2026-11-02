@@ -102,7 +102,8 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
   onAudioStateChangeRef.current = onAudioStateChange;
   const processQueueRef = useRef<() => void>(() => {});
   const agentBindingKeysRef = useRef(new Map<string, string>());
-  // Browser speech reads discussion lines in the open course's language.
+  // Discussion lines are spoken in the open course's language, by browser
+  // speech and by the server's provider alike.
   const stage = useStageStore((s) => s.stage);
   const scenes = useStageStore((s) => s.scenes);
   const courseLang = useMemo(() => courseSpeechLanguage(stage, scenes), [stage, scenes]);
@@ -256,18 +257,20 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
         providerId: item.providerId,
         providerConfig: { ...providerConfig, modelId: item.modelId || providerConfig?.modelId },
         voiceId: item.voiceId,
-        language: locale,
+        language: courseLang ?? locale,
       });
       controller.signal.throwIfAborted();
       const res = await fetch('/api/generate/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // The tts slot names the provider and model on the server.
+        // The tts slot names the provider and model on the server; the agents
+        // speak the course's language.
         body: JSON.stringify({
           text: item.text,
           audioId: item.partId,
           ttsVoice: item.voiceId,
           ttsSpeed: ttsSpeed,
+          ...(courseLang ? { ttsLanguage: courseLang } : {}),
           ttsProviderOptions: providerOptions,
         }),
         signal: controller.signal,
@@ -286,7 +289,7 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
       controller.signal.throwIfAborted();
       return `data:audio/${data.format || 'mp3'};base64,${data.base64}`;
     },
-    [agents, locale, ttsProvidersConfig, ttsSpeed],
+    [agents, courseLang, locale, ttsProvidersConfig, ttsSpeed],
   );
 
   const prefetchNext = useCallback(() => {

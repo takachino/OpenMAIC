@@ -69,6 +69,7 @@ vi.mock('@/lib/hooks/use-browser-tts', () => ({
 }));
 
 import { useDiscussionTTS } from '@/lib/hooks/use-discussion-tts';
+import { useStageStore } from '@/lib/store/stage';
 import { clearUnavailableVoiceBindingsForTests } from '@/lib/audio/unavailable-voice-bindings';
 import { resetDiscussionAudioElementForTests } from '@/lib/audio/discussion-audio';
 
@@ -211,6 +212,36 @@ afterEach(() => {
   act(() => root.unmount());
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe('discussion TTS in the course language', () => {
+  afterEach(() => {
+    act(() => useStageStore.setState({ stage: null, scenes: [] }));
+  });
+
+  it("sends the open course's language, and chooses the voice options for it", async () => {
+    act(() =>
+      useStageStore.setState({
+        stage: { id: 'stage', name: 'Python', createdAt: 0, updatedAt: 0, languageCode: 'ja-JP' },
+        scenes: [],
+      }),
+    );
+    await seal('A');
+    expect(requests[0].body).toMatchObject({ audioId: 'A', ttsLanguage: 'ja-JP' });
+    expect(mocks.voiceOptions).toHaveBeenLastCalledWith(
+      teacher,
+      expect.objectContaining({ language: 'ja-JP' }),
+    );
+  });
+
+  it('sends no language for a course that has none, and keeps the UI locale for the voice options', async () => {
+    await seal('A');
+    expect(requests[0].body).not.toHaveProperty('ttsLanguage');
+    expect(mocks.voiceOptions).toHaveBeenLastCalledWith(
+      teacher,
+      expect.objectContaining({ language: 'en' }),
+    );
+  });
 });
 
 describe('discussion TTS synthesis lookahead', () => {

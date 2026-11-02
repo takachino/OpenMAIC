@@ -610,6 +610,43 @@ describe('generation and deck tools', () => {
     expect(response.details).toMatchObject({ voice: { binding: 'tts-x::voice-default' } });
   });
 
+  it('narrates in the course language: the one the stage records, else the one its speech shows', async () => {
+    const synthesizeTts = vi.fn(async (_input: { language?: string }) => ({
+      available: true,
+      changed: false,
+      generated: 0,
+      skipped: 0,
+      failed: [],
+    }));
+    const recorded = document([slide('a', 1)]);
+    recorded.stage.languageCode = 'en-GB';
+    await find(
+      buildDslCourseToolset(deps(state(recorded).store, { synthesizeTts })),
+      'generate_tts',
+    ).execute('tts', { stageId: 'stage-test', order: 1 } as never);
+    expect(synthesizeTts.mock.lastCall?.[0].language).toBe('en-GB');
+
+    // An unrecorded course: the regenerated page's Japanese speech shows it.
+    const speech = [{ id: 'speech-a', type: 'speech', text: '変数は箱です。' }];
+    await find(
+      buildGenerationTools(
+        deps(state(document([slide('a', 1)])).store, {
+          synthesizeTts,
+          generateActions: vi.fn(async () => speech),
+        }),
+      ),
+      'generate_actions',
+    ).execute('actions', { stageId: 'stage-test', order: 1 } as never);
+    expect(synthesizeTts.mock.lastCall?.[0].language).toBe('ja-JP');
+
+    // Nor recorded nor shown: no language, as before.
+    await find(
+      buildDslCourseToolset(deps(state(document([slide('a', 1)])).store, { synthesizeTts })),
+      'generate_tts',
+    ).execute('tts', { stageId: 'stage-test', order: 1 } as never);
+    expect(synthesizeTts.mock.lastCall?.[0].language).toBeUndefined();
+  });
+
   it('fails closed through an owner-bound store for every new write tool', async () => {
     const foreign = state(null);
     const tools = buildDslCourseToolset(deps(foreign.store));

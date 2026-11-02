@@ -9,6 +9,7 @@ import { authorizeMediaModel } from '@/lib/server/model-config/media';
 import { generateTTS, type TTSGenerationResult } from '@/lib/audio/tts-providers';
 import { TTS_PROVIDERS, DEFAULT_TTS_VOICES, isQwenCloneVoice } from '@/lib/audio/constants';
 import type { TTSProviderId } from '@/lib/audio/types';
+import { courseLanguageVoice, speaksCourseLanguage } from '@/lib/audio/voice-language';
 import { VOXCPM_AUTO_VOICE_ID, VOXCPM_TTS_PROVIDER_ID } from '@/lib/audio/voxcpm';
 import { recordGenerationUsage } from '@/lib/server/usage-storage';
 import { resolveTTSModel, slotTTSModel } from '@/lib/server/provider-config';
@@ -29,6 +30,11 @@ export interface NarrationInput {
   /** The model a deprecated request names; it applies only to a requested provider. */
   requestedModelId?: string;
   speed?: number;
+  /**
+   * The course language (BCP 47), when known: the provider's language
+   * parameter, and the voice for a provider whose voices each speak one.
+   */
+  language?: string;
   /** The voice's provider options (a VoxCPM voice prompt or registered voice, say). */
   providerOptions?: Record<string, unknown>;
   /** Filled in as the provider and voice resolve, for the caller's failure log. */
@@ -54,22 +60,31 @@ export async function synthesizeNarration(
   input: NarrationInput,
   ctx: StepContext,
 ): Promise<NarrationResult> {
-  const { text, audioId, connection, requestedProviderId, requestedVoice } = input;
+  const { text, audioId, connection, requestedProviderId, requestedVoice, language } = input;
   const ttsProviderOptions = input.providerOptions;
   const trace = input.trace ?? {};
   const ttsProviderId = connection.providerId;
   trace.providerId = ttsProviderId;
   // A voice belongs to its provider: the request's voice unless it was
   // chosen for another provider, in which case the provider's default.
-  const ttsVoice =
+  const chosenVoice =
     requestedVoice && (!requestedProviderId || requestedProviderId === ttsProviderId)
       ? requestedVoice
       : configuredDefaultVoice(connection.options, connection.voices) ||
         DEFAULT_TTS_VOICES[ttsProviderId as keyof typeof DEFAULT_TTS_VOICES] ||
         requestedVoice;
+  // A provider whose voices each speak one language says the course in a
+  // voice of its language, whichever voice was asked for.
+  const ttsVoice =
+    chosenVoice && courseLanguageVoice(ttsProviderId, chosenVoice, language, connection.voices);
   trace.voice = ttsVoice;
   if (!ttsVoice) {
     throw new StepRefusal<NarrationRefusal>('voice-missing', 'Missing required field: ttsVoice');
+  }
+  if (!speaksCourseLanguage(ttsProviderId, ttsVoice, language, connection.voices)) {
+    ctx.log.warn(
+      `TTS provider ${ttsProviderId} has no voice in the course language ${language}; speaking ${audioId} with ${ttsVoice}`,
+    );
   }
 
   // Reject browser-native TTS — must be handled client-side
@@ -136,6 +151,7 @@ export async function synthesizeNarration(
     voice: ttsVoice,
     ...(connection.voices ? { voices: connection.voices } : {}),
     speed: qwenCloneVoice ? 1 : requestedSpeed,
+    ...(language ? { language } : {}),
     apiKey: apiKey ?? '',
     baseUrl,
     publicOnly,

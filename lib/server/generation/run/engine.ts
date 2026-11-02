@@ -45,6 +45,7 @@ import { isAbortError } from '@openmaic/generation';
 import type { Queryable } from '@openmaic/storage/document/pg';
 
 import { pickNarratorAgent, resolveServerAgentVoiceOptions } from '@/lib/audio/agent-voice-options';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import { voiceBindingKey } from '@/lib/audio/unavailable-voice-bindings';
 import type { ResolvedVoice } from '@/lib/audio/voice-resolver';
 
@@ -924,8 +925,10 @@ async function executeClaimedRun(
                 languageDirective,
                 availableAvatars: AGENT_AVATARS.map((a) => a.path),
                 avatarDescriptions: AGENT_AVATARS.map((a) => ({ path: a.path, desc: a.desc })),
-                availableVoices: target ? advertisedVoices(target) : [],
-                narratorVoice: target ? narratorVoiceForGeneration(target, input.voice) : undefined,
+                availableVoices: target ? advertisedVoices(target, languageCode) : [],
+                narratorVoice: target
+                  ? narratorVoiceForGeneration(target, input.voice, languageCode)
+                  : undefined,
               },
               { log, signal: callSignal },
             ),
@@ -999,7 +1002,8 @@ async function executeClaimedRun(
     const bound = teacher?.voiceConfig;
     const { speed } = slotVoice(target, input.voice);
     const stageId = agents().stage.id;
-    const { languageDirective } = outline();
+    // The language the outline named, else the one this scene's speech shows.
+    const language = outline().languageCode ?? courseSpeechLanguage(undefined, [scene]);
     const allocated: string[] = [];
     // Clips left silent: the asset store refused them, or the voice is not the slot's.
     let unvoiced = 0;
@@ -1024,7 +1028,7 @@ async function executeClaimedRun(
         providerId: voice.providerId,
         providerConfig: clipProviderConfig(target, voice),
         voiceId: voice.voiceId,
-        language: languageDirective,
+        language,
       });
       try {
         return await withRouteRetry(
@@ -1039,6 +1043,7 @@ async function executeClaimedRun(
                   audioId: `tts_s${scene.order}_${action.id}`,
                   voice: voice.voiceId,
                   speed,
+                  ...(language ? { language } : {}),
                   ...(providerOptions ? { providerOptions } : {}),
                   fence,
                 },

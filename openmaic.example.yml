@@ -62,6 +62,10 @@ providers:
   # With voices alone, the first entry becomes the default voice.
   # A saved global preference outside a replacement list falls back to this default;
   # existing explicit course voice bindings are not rewritten.
+  # A voice may name its `language` (a BCP 47 tag such as ja-JP). Where the
+  # voice sets the language (the lemonade-tts and azure-tts presets), a course
+  # in another language than the chosen or default voice's is spoken with the
+  # first listed voice in the course language, of the same gender if one is.
   # custom-tts:
   #   preset: openai-tts
   #   baseUrl: https://your-provider.example/v1

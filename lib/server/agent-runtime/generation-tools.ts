@@ -34,6 +34,7 @@ import { toGenerationContent } from './generation-content';
 import { checkScenesAgainstSkill } from './skills';
 import { mayNameAPoolAsset } from '@/lib/media/media-placeholder';
 import { isMediaPlaceholder } from '@/lib/store/media-generation';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import { createLogger } from '@/lib/logger';
 
 const MAX_GENERATE_SCENE_MEDIA = 8;
@@ -601,6 +602,10 @@ export function buildGenerationTools(deps: GenerationToolDeps): AgentTool<never,
           scene: next,
           force: false,
           roster: doc.stage.generatedAgentConfigs,
+          language: courseSpeechLanguage(
+            doc.stage,
+            doc.scenes.map((item) => (item.id === next.id ? next : item)),
+          ),
           signal,
           ownerId: deps.ownerId,
         });

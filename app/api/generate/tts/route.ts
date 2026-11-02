@@ -9,6 +9,7 @@
  */
 import { modelAuthorizationResponse } from '@/lib/server/api-response';
 
+import { normalizeLanguageCode } from '@openmaic/dsl';
 import { NextRequest } from 'next/server';
 import {
   QwenTTSError,
@@ -74,6 +75,8 @@ export async function POST(req: NextRequest) {
     const requestedProviderId =
       typeof body.ttsProviderId === 'string' && body.ttsProviderId ? body.ttsProviderId : undefined;
     const requestedVoice = typeof body.ttsVoice === 'string' ? body.ttsVoice.trim() : undefined;
+    // The course language the text is in, when the client knows it.
+    const language = normalizeLanguageCode(body.ttsLanguage);
     audioId = body.audioId;
 
     // A voice that is sent must say something; an absent one means the default.
@@ -115,6 +118,7 @@ export async function POST(req: NextRequest) {
         requestedVoice,
         requestedModelId: ttsModelId,
         speed: ttsSpeed,
+        ...(language ? { language } : {}),
         providerOptions: ttsProviderOptions,
         trace,
       },

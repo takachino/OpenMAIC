@@ -1570,6 +1570,79 @@ describe.skipIf(!contractUrl)('generation runs on PostgreSQL', () => {
     expect(voices).toEqual([clone, 'Cherry', 'Cherry', 'Cherry']);
   });
 
+  it('narrates the course language: the one the outline names, else the one a scene shows', async () => {
+    const kokoro = {
+      connection: {
+        providerId: 'lemonade-tts',
+        managed: true,
+        userEndpoint: false,
+        origin: 'configuration',
+        options: { defaultVoice: 'jf_alpha' },
+        voices: [
+          { id: 'jf_alpha', name: 'Alpha', language: 'ja-JP', gender: 'female' },
+          { id: 'af_heart', name: 'Heart', language: 'en-US', gender: 'female' },
+          { id: 'am_michael', name: 'Michael', language: 'en-US', gender: 'male' },
+        ],
+      } as MediaConnection,
+      providerId: 'lemonade-tts' as const,
+      modelId: 'kokoro',
+    };
+    // An English course (the outline names en-US) where the voice sets the
+    // language: the teacher and the agents get English voices, not the
+    // Japanese default.
+    const english = fakeServices({
+      research: async () => null,
+      narrationTarget: async () => kokoro,
+    });
+    const named = await start(runInput({ outlineReview: 'auto' }));
+    expect(await drive(named.id, english.services)).toBe('completed');
+    const profiles = english.calls.agentProfiles[0] as {
+      narratorVoice?: { providerId: string; voiceId: string };
+      availableVoices: { voiceId: string }[];
+    };
+    expect(profiles.narratorVoice).toMatchObject({
+      providerId: 'lemonade-tts',
+      voiceId: 'af_heart',
+    });
+    expect(profiles.availableVoices.map((voice) => voice.voiceId)).toEqual([
+      'af_heart',
+      'am_michael',
+    ]);
+    expect(english.calls.narrateClip.map((call) => call.language)).toEqual([
+      'en-US',
+      'en-US',
+      'en-US',
+    ]);
+
+    // An outline that names no language: each scene's Japanese speech shows it.
+    const base = fakeServices({ research: async () => null });
+    const unnamed = fakeServices({
+      research: async () => null,
+      outline: async (owner, input, ctx) => {
+        const result = await base.services.outline(owner, input, ctx);
+        return { ...result, languageCode: undefined };
+      },
+      sceneActions: async (owner, input, ctx) => {
+        const result = await base.services.sceneActions(owner, input, ctx);
+        result.scene.actions = [
+          {
+            id: `speech-${input.outline.id}`,
+            type: 'speech',
+            text: '光合成について学びましょう。',
+          },
+        ] as never;
+        return result;
+      },
+    });
+    const shown = await start(runInput({ outlineReview: 'auto' }));
+    expect(await drive(shown.id, unnamed.services)).toBe('completed');
+    expect(unnamed.calls.narrateClip.map((call) => call.language)).toEqual([
+      'ja-JP',
+      'ja-JP',
+      'ja-JP',
+    ]);
+  });
+
   it('releases the clips of a narration attempt that failed', async () => {
     const base = fakeServices({ research: async () => null });
     let clips = 0;

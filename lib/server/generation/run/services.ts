@@ -100,6 +100,8 @@ export interface NarrateClipInput {
   audioId: string;
   voice: string;
   speed: number;
+  /** The course language (BCP 47), when the outline named it or the scene shows it. */
+  language?: string;
   /** The voice's provider options (a VoxCPM voice prompt, say). */
   providerOptions?: Record<string, unknown>;
   /** The run's lease check, on the clip's asset allocation. */
@@ -553,6 +555,7 @@ export const defaultRunStepServices: RunStepServices = {
         connection: input.target.connection,
         requestedVoice: input.voice,
         speed: input.speed,
+        ...(input.language ? { language: input.language } : {}),
         ...(input.providerOptions ? { providerOptions: input.providerOptions } : {}),
       },
       ctx,

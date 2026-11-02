@@ -16,6 +16,7 @@ import {
 } from '@/lib/audio/constants';
 import type { BuiltInTTSProviderId, TTSProviderId, ConfiguredTTSVoice } from '@/lib/audio/types';
 import { isTTSProviderEnabled } from '@/lib/audio/provider-enablement';
+import { courseLanguageVoice, voiceSpeaksLanguage } from '@/lib/audio/voice-language';
 import { voiceBindingKey } from '@/lib/audio/unavailable-voice-bindings';
 import {
   deterministicNarratorVoice,
@@ -123,8 +124,20 @@ function catalogVoiceGender(
   )?.gender;
 }
 
-/** The voices the agent-profiles step may bind agents to, as the browser advertises them. */
-export function advertisedVoices(target: RunNarrationTarget) {
+/**
+ * The voices the agent-profiles step may bind agents to, as the browser
+ * advertises them: only those that speak the course `language` when the slot's
+ * provider has some and its voices set the language.
+ */
+export function advertisedVoices(target: RunNarrationTarget, language?: string) {
+  const voices = catalogVoices(target);
+  const inLanguage = voices.filter((voice) =>
+    voiceSpeaksLanguage(voice.providerId, voice.voiceLanguage, language),
+  );
+  return inLanguage.length > 0 ? inLanguage : voices;
+}
+
+function catalogVoices(target: RunNarrationTarget) {
   return getEnabledProvidersWithVoices(providersConfig(target)).flatMap((provider) =>
     provider.voices.map((voice) => {
       const cloneModelGroup =
@@ -151,15 +164,19 @@ export function advertisedVoices(target: RunNarrationTarget) {
   );
 }
 
-/** The narrator voice the teacher is pinned to at agent generation. */
+/**
+ * The narrator voice the teacher is pinned to at agent generation: the slot
+ * voice, in the course `language` when the provider's voices set it.
+ */
 export function narratorVoiceForGeneration(
   target: RunNarrationTarget,
   preference: GenerationRunInput['voice'],
+  language?: string,
 ): ResolvedVoice | undefined {
   const { voice } = slotVoice(target, preference);
   return resolveNarratorVoiceForGeneration(
     target.providerId,
-    voice,
+    courseLanguageVoice(target.providerId, voice, language, target.connection.voices),
     providersConfig(target)[target.providerId],
   );
 }

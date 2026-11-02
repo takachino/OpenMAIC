@@ -3,6 +3,7 @@ import { Type } from 'typebox';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 
 import type { AppDocumentOutline } from '@/lib/document-store/persistence-types';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import type { Scene } from '@/lib/types/stage';
 import { matchOutlineEntries } from '../course-outline-union';
 import { putSceneBringingCurrent } from '../document-writes';
@@ -114,6 +115,7 @@ export function buildCourseAudioAndDeckTools(deps: CourseToolDeps): AgentTool<ne
         scene,
         force: params.force ?? false,
         roster: doc.stage.generatedAgentConfigs,
+        language: courseSpeechLanguage(doc.stage, doc.scenes),
         signal,
         ownerId: deps.ownerId,
       });

@@ -78,7 +78,10 @@ interface TTSApiResponse {
 // (bound-dead → global-dead → deterministic-dead → …) forever.
 const MAX_NARRATOR_VOICE_FALLBACK_HOPS = 1;
 
-/** Generate TTS for one speech action and return its allocated asset reference. */
+/**
+ * Generate TTS for one speech action and return its allocated asset reference.
+ * `language` is the course language (BCP 47), when known.
+ */
 export async function generateAndStoreTTS(
   requestId: string,
   text: string,
@@ -175,12 +178,14 @@ export async function generateAndStoreTTS(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           // The tts slot names the provider and model; the voice decides a
-          // voice-clone model on the server.
+          // voice-clone model on the server, and the course language what the
+          // provider is told the text is in.
           body: JSON.stringify({
             text,
             audioId: requestId,
             ttsVoice,
             ttsSpeed: selection.speed,
+            ...(language ? { ttsLanguage: language } : {}),
             ttsProviderOptions: providerOptions,
           }),
           signal,

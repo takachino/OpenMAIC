@@ -280,7 +280,6 @@ export function SpeechTtsBar({
   audioUrl,
   audioInvalidated,
   sceneOrder,
-  language,
   text,
   refreshKey,
   regenerating,
@@ -292,7 +291,6 @@ export function SpeechTtsBar({
   audioUrl?: string;
   audioInvalidated?: boolean;
   sceneOrder: number;
-  language?: string;
   text: string;
   refreshKey?: number;
   regenerating?: boolean;
@@ -438,11 +436,11 @@ export function SpeechTtsBar({
     setStatus('generating');
     try {
       const previousAudioId = audioId;
-      const id = await regenerateSpeechAudio(
-        sceneOrder,
-        { id: actionId, text, audioId: previousAudioId },
-        language,
-      );
+      const id = await regenerateSpeechAudio(sceneOrder, {
+        id: actionId,
+        text,
+        audioId: previousAudioId,
+      });
       if (id) {
         setReadAudioId(id);
         onGenerated(id);
@@ -526,7 +524,6 @@ function SpeechClip({
   audioUrl,
   audioInvalidated,
   sceneOrder,
-  language,
   autoFocus,
   ttsActive,
   ttsRefresh,
@@ -549,7 +546,6 @@ function SpeechClip({
   audioUrl?: string;
   audioInvalidated?: boolean;
   sceneOrder: number;
-  language?: string;
   autoFocus: boolean;
   ttsActive: boolean;
   ttsRefresh?: number;
@@ -647,7 +643,6 @@ function SpeechClip({
           audioUrl={audioUrl}
           audioInvalidated={audioInvalidated}
           sceneOrder={sceneOrder}
-          language={language}
           text={val}
           refreshKey={ttsRefresh}
           regenerating={regenerating}
@@ -1052,7 +1047,6 @@ export function ActionsBar({ sceneId }: { sceneId: string }) {
         | { canvas?: { elements?: { id?: string; type: string; content?: string }[] } }
         | undefined
     )?.canvas?.elements ?? EMPTY_ELEMENTS;
-  const language = useStageStore((s) => s.stage?.languageDirective);
   // Managed TTS on → speech clips show audio status + preview / regenerate.
   // The ownership gate belongs on regeneration alone: listening back to
   // narration that already exists, and seeing whether a line has any, spend
@@ -1131,15 +1125,11 @@ export function ActionsBar({ sceneId }: { sceneId: string }) {
           );
           if (!liveAction || liveAction.type !== 'speech') continue;
           const previousAudioId = liveAction.audioId;
-          const id = await regenerateSpeechAudio(
-            latest()?.order ?? order,
-            {
-              id: liveAction.id,
-              text: liveAction.text,
-              audioId: previousAudioId,
-            },
-            language,
-          );
+          const id = await regenerateSpeechAudio(latest()?.order ?? order, {
+            id: liveAction.id,
+            text: liveAction.text,
+            audioId: previousAudioId,
+          });
           if (id) {
             commit((cur) => setAudioIdById(cur, liveAction.id!, id));
             await flushStageSave();
@@ -1156,7 +1146,7 @@ export function ActionsBar({ sceneId }: { sceneId: string }) {
       // batchPending flag) instead of getting stuck in the generating state.
       setTtsRefresh((n) => n + 1);
     }
-  }, [regenAll, sceneId, language, commit]);
+  }, [regenAll, sceneId, commit]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const panViewport = (dir: -1 | 1) =>
@@ -1387,7 +1377,6 @@ export function ActionsBar({ sceneId }: { sceneId: string }) {
                                 (action as { audioInvalidated?: boolean }).audioInvalidated
                               }
                               sceneOrder={sceneOrder}
-                              language={language}
                               ttsActive={ttsActive}
                               ttsRefresh={ttsRefresh}
                               regenerating={regeneratingIds.has(key)}

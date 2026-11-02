@@ -95,6 +95,35 @@ describe('run step services', () => {
     expect(mocks.storeGeneratedAsset).toHaveBeenCalledWith(expect.objectContaining({ mimeType }));
   });
 
+  it('synthesizes a clip in the course language', async () => {
+    mocks.synthesizeNarration.mockReset().mockResolvedValue({
+      audio: new Uint8Array([1]),
+      format: 'mp3',
+    });
+    mocks.storeGeneratedAsset.mockReset().mockResolvedValue({ status: 'stored', assetId: 'ast_1' });
+    await defaultRunStepServices.narrateClip(
+      'user:a',
+      {
+        target: {
+          connection: { providerId: 'openai-tts' } as MediaConnection,
+          providerId: 'openai-tts',
+        },
+        stageId: 'stage-1',
+        text: 'こんにちは',
+        audioId: 'tts_s1_a',
+        voice: 'alloy',
+        speed: 1,
+        language: 'ja-JP',
+        fence: async () => undefined,
+      },
+      { log },
+    );
+    expect(mocks.synthesizeNarration).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'こんにちは', requestedVoice: 'alloy', language: 'ja-JP' }),
+      expect.anything(),
+    );
+  });
+
   it('refuses audio in a format it cannot serve', async () => {
     mocks.synthesizeNarration.mockResolvedValue({ audio: new Uint8Array([1]), format: 'pcm' });
     await expect(

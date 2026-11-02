@@ -10,8 +10,10 @@ import { resolveServerAgentVoiceOptions } from '@/lib/audio/agent-voice-options'
 import { voiceBindingKey } from '@/lib/audio/unavailable-voice-bindings';
 import type { AgentConfig } from '@/lib/orchestration/registry/types';
 import {
+  advertisedVoices,
   clipVoice,
   clipVoiceAfterMissingClone,
+  narratorVoiceForGeneration,
   type RunNarrationTarget,
 } from '@/lib/server/generation/run/narration-voice';
 import type { MediaConnection } from '@/lib/server/model-config/media';
@@ -118,6 +120,53 @@ describe('run narration voices', () => {
         usedFallbackVoice: true,
       }),
     ).toBeNull();
+  });
+
+  describe('a course on a provider whose voice sets the language', () => {
+    const kokoro: RunNarrationTarget = {
+      connection: {
+        providerId: 'lemonade-tts',
+        managed: true,
+        userEndpoint: false,
+        origin: 'configuration',
+        options: { defaultVoice: 'jf_alpha' },
+        voices: [
+          { id: 'jf_alpha', name: 'Alpha', language: 'ja-JP', gender: 'female' },
+          { id: 'jm_kumo', name: 'Kumo', language: 'ja-JP', gender: 'male' },
+          { id: 'af_heart', name: 'Heart', language: 'en-US', gender: 'female' },
+          { id: 'am_michael', name: 'Michael', language: 'en-US', gender: 'male' },
+        ],
+      } as MediaConnection,
+      providerId: 'lemonade-tts',
+      modelId: 'kokoro',
+    };
+
+    it('pins the teacher to a voice of the course language, the default or the chosen one', () => {
+      expect(narratorVoiceForGeneration(kokoro, undefined, 'en-US')?.voiceId).toBe('af_heart');
+      expect(
+        narratorVoiceForGeneration(
+          kokoro,
+          { providerId: 'lemonade-tts', voiceId: 'jm_kumo' },
+          'en-US',
+        )?.voiceId,
+      ).toBe('am_michael');
+      expect(narratorVoiceForGeneration(kokoro, undefined, 'ja-JP')?.voiceId).toBe('jf_alpha');
+      expect(narratorVoiceForGeneration(kokoro, undefined, undefined)?.voiceId).toBe('jf_alpha');
+    });
+
+    it('offers the other agents only voices of the course language, when it has some', () => {
+      const offered = (language?: string) =>
+        advertisedVoices(kokoro, language).map((voice) => voice.voiceId);
+      expect(offered('en-GB')).toEqual(['af_heart', 'am_michael']);
+      expect(offered('ja-JP')).toEqual(['jf_alpha', 'jm_kumo']);
+      expect(offered('es-ES')).toEqual(['jf_alpha', 'jm_kumo', 'af_heart', 'am_michael']);
+      expect(offered(undefined)).toEqual(['jf_alpha', 'jm_kumo', 'af_heart', 'am_michael']);
+    });
+
+    it('leaves the voices of a provider whose voices speak any language', () => {
+      expect(advertisedVoices(qwen, 'ja-JP')).toEqual(advertisedVoices(qwen));
+      expect(narratorVoiceForGeneration(qwen, undefined, 'ja-JP')?.voiceId).toBe('Cherry');
+    });
   });
 
   it('gives the VoxCPM auto voice its prompt from the teacher, as the browser does', async () => {

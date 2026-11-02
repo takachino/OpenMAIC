@@ -104,7 +104,7 @@ describe('allocated speech audio identities', () => {
     mocks.mayGenerate.mockReturnValue(false);
 
     await expect(
-      regenerateSpeechAudio(3, { id: 'speech-1', text: 'New narration' }, 'English'),
+      regenerateSpeechAudio(3, { id: 'speech-1', text: 'New narration' }),
     ).resolves.toBeNull();
     expect(mocks.generateAndStoreTTS).not.toHaveBeenCalled();
   });
@@ -112,17 +112,33 @@ describe('allocated speech audio identities', () => {
   it('returns the freshly allocated id from regeneration', async () => {
     mocks.generateAndStoreTTS.mockResolvedValueOnce('ast_fresh_audio');
 
-    await expect(
-      regenerateSpeechAudio(3, { id: 'speech-1', text: 'New narration' }, 'English'),
-    ).resolves.toBe('ast_fresh_audio');
+    await expect(regenerateSpeechAudio(3, { id: 'speech-1', text: 'New narration' })).resolves.toBe(
+      'ast_fresh_audio',
+    );
     expect(mocks.generateAndStoreTTS).toHaveBeenCalledWith(
       'tts_request_s3_speech-1',
       'New narration',
-      'English',
+      undefined,
       undefined,
       undefined,
       undefined,
     );
+  });
+
+  it('synthesizes in the language the course records, else the one its speech shows', async () => {
+    mocks.generateAndStoreTTS.mockResolvedValue('ast_fresh_audio');
+    const japaneseScene = { actions: [{ type: 'speech', text: '変数は箱です。' }] };
+    for (const [stage, scenes, expected] of [
+      // A recorded language wins over what the speech shows.
+      [{ id: 'stage-1', languageCode: 'en-GB' }, [japaneseScene], 'en-GB'],
+      [{ id: 'stage-1' }, [japaneseScene], 'ja-JP'],
+      // Never the free-text language directive.
+      [{ id: 'stage-1', languageDirective: 'Teach in English.' }, [], undefined],
+    ] as const) {
+      mocks.stageState = { stage: { ...stage }, scenes: [...scenes] };
+      await regenerateSpeechAudio(3, { id: 'speech-1', text: 'New narration' });
+      expect(mocks.generateAndStoreTTS.mock.lastCall?.[2]).toBe(expected);
+    }
   });
 
   it('always forks to a fresh allocation, even for a clip only this line holds', async () => {
@@ -132,17 +148,17 @@ describe('allocated speech audio identities', () => {
     mocks.generateAndStoreTTS.mockResolvedValueOnce('ast_fresh_audio');
 
     await expect(
-      regenerateSpeechAudio(
-        3,
-        { id: 'speech-1', text: 'New narration', audioId: 'ast_only_here_audio' },
-        'English',
-      ),
+      regenerateSpeechAudio(3, {
+        id: 'speech-1',
+        text: 'New narration',
+        audioId: 'ast_only_here_audio',
+      }),
     ).resolves.toBe('ast_fresh_audio');
 
     expect(mocks.generateAndStoreTTS).toHaveBeenCalledWith(
       'tts_request_s3_speech-1',
       'New narration',
-      'English',
+      undefined,
       undefined,
       undefined,
       'stage-1',
@@ -154,17 +170,17 @@ describe('allocated speech audio identities', () => {
     mocks.generateAndStoreTTS.mockResolvedValueOnce('ast_fresh_audio');
 
     await expect(
-      regenerateSpeechAudio(
-        3,
-        { id: 'speech-1', text: 'Updated narration', audioId: 'ast_existing_audio' },
-        'English',
-      ),
+      regenerateSpeechAudio(3, {
+        id: 'speech-1',
+        text: 'Updated narration',
+        audioId: 'ast_existing_audio',
+      }),
     ).resolves.toBe('ast_fresh_audio');
 
     expect(mocks.generateAndStoreTTS).toHaveBeenCalledWith(
       'tts_request_s3_speech-1',
       'Updated narration',
-      'English',
+      undefined,
       undefined,
       undefined,
       undefined,

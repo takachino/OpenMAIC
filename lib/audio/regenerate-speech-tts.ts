@@ -8,6 +8,7 @@
 import { db } from '@/lib/device-storage/database';
 import { serverTTSAvailable } from '@/lib/audio/tts-selection';
 import { generateAndStoreTTS } from '@/lib/audio/narration-tts';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import { useStageStore } from '@/lib/store/stage';
 import { resolveAudioBlob } from '@/lib/media/resolve-audio-bytes';
 import { mayGenerateForStage } from '@/lib/classroom/generation-permission';
@@ -95,7 +96,7 @@ export async function discardSpeechAudio(
 }
 
 /**
- * (Re)generate TTS for one speech line.
+ * (Re)generate TTS for one speech line, in the open course's language.
  *
  * The clip always gets a fresh allocation (see `generateAndStoreTTS`): another
  * document may hold the old id, and no browser can prove it does not. Returns
@@ -104,17 +105,18 @@ export async function discardSpeechAudio(
 export async function regenerateSpeechAudio(
   sceneOrder: number,
   action: { id?: string; text?: string; audioId?: string },
-  language?: string,
   signal?: AbortSignal,
 ): Promise<string | null> {
   if (!isManagedTtsActive()) return null;
   const text = action.text?.trim();
   if (!text || !action.id) return null;
   const requestId = `tts_request_s${sceneOrder}_${action.id}`;
-  const stageId = useStageStore.getState().stage?.id;
+  const { stage, scenes } = useStageStore.getState();
+  const stageId = stage?.id;
   // Regenerating narration calls the TTS provider and allocates a fresh pool
   // asset, so it is gated exactly like every other way generation starts. The
   // surfaces withhold the control too; refusing here keeps the two one rule.
   if (!mayGenerateForStage(stageId)) return null;
+  const language = courseSpeechLanguage(stage, scenes);
   return generateAndStoreTTS(requestId, text, language, signal, undefined, stageId);
 }

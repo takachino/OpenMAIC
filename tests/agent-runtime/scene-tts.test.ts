@@ -162,5 +162,92 @@ describe('scene TTS capability routing', () => {
       });
       expect(describeNarrationVoice(summary.voice!)).toContain('the roster has no teacher');
     });
+
+    describe('on a provider whose voice sets the language', () => {
+      beforeEach(() => {
+        mocks.providers.mockResolvedValue({
+          providerId: 'lemonade-tts',
+          managed: true,
+          userEndpoint: false,
+          origin: 'configuration',
+          options: { defaultVoice: 'jf_alpha' },
+          voices: [
+            { id: 'jf_alpha', name: 'Alpha', language: 'ja-JP', gender: 'female' },
+            { id: 'jf_gongitsune', name: 'Gongitsune', language: 'ja-JP', gender: 'female' },
+            { id: 'af_heart', name: 'Heart', language: 'en-US', gender: 'female' },
+          ],
+        });
+      });
+
+      it('speaks in a voice of the course language and says which voice it replaced', async () => {
+        const summary = await synthesizeSceneNarration({
+          scene: structuredClone(scene),
+          force: true,
+          language: 'en-US',
+        });
+        expect(mocks.generate.mock.calls[0]![0]).toMatchObject({
+          voice: 'af_heart',
+          language: 'en-US',
+        });
+        expect(summary.voice).toEqual({
+          binding: 'lemonade-tts::af_heart',
+          source: 'course-language',
+          courseLanguage: 'en-US',
+          replaced: 'lemonade-tts::jf_alpha',
+        });
+        expect(describeNarrationVoice(summary.voice!)).toBe(
+          'Voice: lemonade-tts::af_heart (in the course language en-US, in place of lemonade-tts::jf_alpha, which speaks another language).',
+        );
+      });
+
+      it("replaces the teacher's roster binding when it speaks another language", async () => {
+        const summary = await synthesizeSceneNarration({
+          scene: structuredClone(scene),
+          force: true,
+          language: 'en-US',
+          roster: [
+            agent('teacher', 'Ms. Lin', { providerId: 'lemonade-tts', voiceId: 'jf_gongitsune' }),
+          ],
+        });
+        expect(summary.voice).toEqual({
+          binding: 'lemonade-tts::af_heart',
+          source: 'course-language',
+          courseLanguage: 'en-US',
+          replaced: 'lemonade-tts::jf_gongitsune',
+          teacher: 'Ms. Lin',
+        });
+      });
+
+      it('keeps the voice, and says so, when no voice speaks the course language', async () => {
+        const summary = await synthesizeSceneNarration({
+          scene: structuredClone(scene),
+          force: true,
+          language: 'es-ES',
+        });
+        expect(mocks.generate.mock.calls[0]![0]).toMatchObject({ voice: 'jf_alpha' });
+        expect(summary.voice).toEqual({
+          binding: 'lemonade-tts::jf_alpha',
+          source: 'provider-default',
+          fallbackReason: 'no-teacher',
+          unspokenLanguage: 'es-ES',
+        });
+        expect(describeNarrationVoice(summary.voice!)).toBe(
+          'Voice: lemonade-tts::jf_alpha (provider default; the roster has no teacher). No voice of lemonade-tts speaks the course language es-ES.',
+        );
+      });
+
+      it('reports a voice that speaks the course language as before', async () => {
+        const summary = await synthesizeSceneNarration({
+          scene: structuredClone(scene),
+          force: true,
+          language: 'ja-JP',
+        });
+        expect(summary.voice).toEqual({
+          binding: 'lemonade-tts::jf_alpha',
+          source: 'provider-default',
+          fallbackReason: 'no-teacher',
+        });
+      });
+    });
   });
 });

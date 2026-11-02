@@ -141,6 +141,26 @@ describe('narration TTS retries', () => {
     );
   });
 
+  it('sends the course language for the server to speak the line in', async () => {
+    const { generateAndStoreTTS } = await import('@/lib/audio/narration-tts');
+    mockFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, base64: btoa('audio'), format: 'wav' }),
+    );
+
+    await generateAndStoreTTS('request-language', 'こんにちは', 'ja-JP');
+    expect(JSON.parse(String(mockFetch.mock.lastCall?.[1]?.body)).ttsLanguage).toBe('ja-JP');
+    // The voice options (a VoxCPM sample sentence) are chosen for the same language.
+    expect(mocks.resolveAgentVoiceOptions).toHaveBeenLastCalledWith(
+      undefined,
+      expect.objectContaining({ language: 'ja-JP' }),
+    );
+
+    await generateAndStoreTTS('request-no-language', 'Hello class');
+    expect(JSON.parse(String(mockFetch.mock.lastCall?.[1]?.body))).not.toHaveProperty(
+      'ttsLanguage',
+    );
+  });
+
   it("narrates with a voice the slot's model can speak", async () => {
     const { generateAndStoreTTS } = await import('@/lib/audio/narration-tts');
     // Marin needs gpt-4o-mini-tts; the slot speaks with tts-1.

@@ -13,8 +13,9 @@ import { runFailureCode, type RunFailureErrorCode } from '@/lib/server/generatio
 import { SCENE_MAX_RETRIES, withRouteRetry } from '@/lib/server/generation/run/retry';
 import { isUpstreamQuotaExhausted } from '@/lib/server/llm-error-response';
 import { createSemaphore } from '@/lib/utils/concurrency';
-import type { TTSProviderId } from '@/lib/audio/types';
+import type { ConfiguredTTSVoice, TTSProviderId } from '@/lib/audio/types';
 import { BROWSER_NATIVE_TTS_PROVIDER_ID } from '@/lib/audio/provider-enablement';
+import { courseLanguageVoice, speaksCourseLanguage } from '@/lib/audio/voice-language';
 import type { LegacySpeechAction, SpeechAction } from '@/lib/types/action';
 import type { GeneratedAgentConfig, Scene } from '@/lib/types/stage';
 import { adapterOptions } from '@/lib/server/model-config/adapter-options';
@@ -37,11 +38,21 @@ export interface SceneTtsFailure {
 export interface SceneTtsVoice {
   /** `providerId::voiceId`; the voice part is empty when the provider has no default. */
   binding: string;
-  source: 'roster-teacher' | 'provider-default';
+  /**
+   * `course-language` when the provider's voices set the language and the
+   * voice that would have spoken (`replaced`) speaks another one than the
+   * course's (`courseLanguage`).
+   */
+  source: 'roster-teacher' | 'provider-default' | 'course-language';
   /** The teacher whose binding applied, or who was passed over for the default. */
   teacher?: string;
   /** Why a teacher binding did not apply. */
   fallbackReason?: 'no-teacher' | 'teacher-unbound' | 'teacher-bound-to-other-provider';
+  courseLanguage?: string;
+  /** The `providerId::voiceId` a voice in the course language replaced. */
+  replaced?: string;
+  /** The course language, when no voice of the provider speaks it. */
+  unspokenLanguage?: string;
 }
 
 export interface SceneTtsSummary {
@@ -177,6 +188,8 @@ export interface SceneTtsInput {
   scene: Scene;
   force: boolean;
   roster?: readonly GeneratedAgentConfig[] | null;
+  /** The course language (BCP 47), when the stage records it or its speech shows it. */
+  language?: string;
   signal?: AbortSignal;
   /** The run's owner, whose tts slot applies. */
   ownerId?: string;
@@ -263,18 +276,53 @@ function voiceReport(
   };
 }
 
+/**
+ * The report for lines `chosen` would have spoken and `spoken` speaks: they
+ * differ when the provider's voices set the language and `chosen` speaks
+ * another one than the course's.
+ */
+function narrationVoiceReport(
+  input: SceneTtsInput,
+  providerId: string,
+  chosen: string,
+  spoken: string,
+  voices: ConfiguredTTSVoice[] | undefined,
+): SceneTtsVoice {
+  const report = voiceReport(input.roster, providerId, chosen);
+  if (spoken !== chosen) {
+    return {
+      binding: `${providerId}::${spoken}`,
+      source: 'course-language',
+      courseLanguage: input.language,
+      replaced: report.binding,
+      ...(report.source === 'roster-teacher' ? { teacher: report.teacher } : {}),
+    };
+  }
+  return speaksCourseLanguage(providerId, spoken, input.language, voices)
+    ? report
+    : { ...report, unspokenLanguage: input.language };
+}
+
 /** One line for a tool result: which voice the synthesized lines used, and why. */
 export function describeNarrationVoice(voice: SceneTtsVoice): string {
-  if (voice.source === 'roster-teacher') {
-    return `Voice: ${voice.binding} (teacher "${voice.teacher}"'s roster binding).`;
+  if (voice.source === 'course-language') {
+    return `Voice: ${voice.binding} (in the course language ${voice.courseLanguage}, in place of ${voice.replaced}, which speaks another language).`;
   }
-  const why =
-    voice.fallbackReason === 'no-teacher'
-      ? 'the roster has no teacher'
-      : voice.fallbackReason === 'teacher-bound-to-other-provider'
-        ? `teacher "${voice.teacher}" is bound to a voice of another provider`
-        : `teacher "${voice.teacher}" has no voice bound`;
-  return `Voice: ${voice.binding} (provider default; ${why}).`;
+  let line: string;
+  if (voice.source === 'roster-teacher') {
+    line = `Voice: ${voice.binding} (teacher "${voice.teacher}"'s roster binding).`;
+  } else {
+    const why =
+      voice.fallbackReason === 'no-teacher'
+        ? 'the roster has no teacher'
+        : voice.fallbackReason === 'teacher-bound-to-other-provider'
+          ? `teacher "${voice.teacher}" is bound to a voice of another provider`
+          : `teacher "${voice.teacher}" has no voice bound`;
+    line = `Voice: ${voice.binding} (provider default; ${why}).`;
+  }
+  if (!voice.unspokenLanguage) return line;
+  const provider = voice.binding.split('::')[0];
+  return `${line} No voice of ${provider} speaks the course language ${voice.unspokenLanguage}.`;
 }
 
 function audioMime(format: string) {
@@ -301,12 +349,16 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
   if (provider?.requiresApiKey && !apiKey) {
     return { available: false, changed: false, generated: 0, skipped: 0, failed: [] };
   }
-  const voice =
+  const chosenVoice =
     bound?.providerId === providerId && bound.voiceId
       ? bound.voiceId
       : configuredDefaultVoice(connection.options, connection.voices) ||
         DEFAULT_TTS_VOICES[providerId as keyof typeof DEFAULT_TTS_VOICES] ||
         '';
+  // A provider whose voices each speak one language says the course in a
+  // voice of its language, the teacher's binding or the default.
+  const voice =
+    chosenVoice && courseLanguageVoice(providerId, chosenVoice, input.language, connection.voices);
   const model =
     connection.modelId ?? (DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '');
   // A configured slot's own model; the legacy server pins apply only to a default.
@@ -365,6 +417,7 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
                       voice,
                       ...(connection.voices ? { voices: connection.voices } : {}),
                       speed: speech.speed,
+                      ...(input.language ? { language: input.language } : {}),
                       // The provider's own options (a VoxCPM backend, say).
                       providerOptions: adapterOptions(connection),
                       signal: input.signal,
@@ -452,7 +505,7 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
       generated,
       skipped,
       failed,
-      voice: voiceReport(input.roster, providerId, voice),
+      voice: narrationVoiceReport(input, providerId, chosenVoice, voice, connection.voices),
     };
   } finally {
     releaseProviderGate(held);
