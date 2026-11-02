@@ -562,7 +562,8 @@ describe('Qwen voice cloning', () => {
     );
     const requestBody = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
     expect(requestBody.model).toBe('qwen3-tts-flash');
-    expect(requestBody.input).toMatchObject({ voice: 'Cherry', language_type: 'Chinese' });
+    // No course language: Qwen detects it.
+    expect(requestBody.input).toMatchObject({ voice: 'Cherry', language_type: 'Auto' });
     expect(requestBody.parameters).toBeDefined();
   });
 

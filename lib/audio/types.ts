@@ -174,6 +174,12 @@ export interface TTSModelConfig {
   voices?: ConfiguredTTSVoice[];
   speed?: number;
   format?: string;
+  /**
+   * The language the text is in: the course's, as a BCP 47 language-region
+   * tag (`ja-JP`). Each provider's adapter turns it into its own parameter, if
+   * it has one; absent, the provider detects the language as before.
+   */
+  language?: string;
   providerOptions?: Record<string, unknown>;
   /**
    * Cancel the provider request(s) when this signal aborts. The agent runtime

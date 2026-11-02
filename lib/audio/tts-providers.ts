@@ -949,6 +949,30 @@ async function generateGLMTTS(
   return await validateTTSAudioResponse(response, 'GLM', 'wav');
 }
 
+/** The language part of a BCP 47 tag, lowercased (`ja-JP` → `ja`). */
+function primaryLanguage(tag: string): string {
+  return tag.toLowerCase().split('-')[0];
+}
+
+/** The languages Qwen3 TTS names in `language_type`; any other is `Auto`. */
+const QWEN_LANGUAGE_TYPES = new Map([
+  ['zh', 'Chinese'],
+  ['en', 'English'],
+  ['de', 'German'],
+  ['it', 'Italian'],
+  ['pt', 'Portuguese'],
+  ['es', 'Spanish'],
+  ['ja', 'Japanese'],
+  ['ko', 'Korean'],
+  ['fr', 'French'],
+  ['ru', 'Russian'],
+]);
+
+/** Qwen's `language_type` for the text's language: Auto (detect it) when it is unknown. */
+function qwenLanguageType(language?: string): string {
+  return (language && QWEN_LANGUAGE_TYPES.get(primaryLanguage(language))) || 'Auto';
+}
+
 /**
  * Qwen TTS implementation (DashScope API - Qwen3 TTS Flash)
  */
@@ -1006,7 +1030,7 @@ async function generateQwenTTS(
         input: {
           text,
           voice: config.voice,
-          language_type: 'Chinese', // Default to Chinese, can be made configurable
+          language_type: qwenLanguageType(config.language),
         },
         parameters: {
           rate, // Speech rate from -500 to 500
@@ -1127,6 +1151,64 @@ function throwIfMiniMaxBaseRespFailed(
 }
 
 /**
+ * The languages MiniMax names in `language_boost`, by BCP 47 language.
+ * https://platform.minimax.io/docs/api-reference/speech-t2a-http
+ */
+const MINIMAX_LANGUAGE_BOOSTS = new Map([
+  ['zh', 'Chinese'],
+  ['yue', 'Chinese,Yue'],
+  ['en', 'English'],
+  ['ar', 'Arabic'],
+  ['ru', 'Russian'],
+  ['es', 'Spanish'],
+  ['fr', 'French'],
+  ['pt', 'Portuguese'],
+  ['de', 'German'],
+  ['tr', 'Turkish'],
+  ['nl', 'Dutch'],
+  ['uk', 'Ukrainian'],
+  ['vi', 'Vietnamese'],
+  ['id', 'Indonesian'],
+  ['ja', 'Japanese'],
+  ['it', 'Italian'],
+  ['ko', 'Korean'],
+  ['th', 'Thai'],
+  ['pl', 'Polish'],
+  ['ro', 'Romanian'],
+  ['el', 'Greek'],
+  ['cs', 'Czech'],
+  ['fi', 'Finnish'],
+  ['hi', 'Hindi'],
+  ['bg', 'Bulgarian'],
+  ['da', 'Danish'],
+  ['he', 'Hebrew'],
+  ['ms', 'Malay'],
+  ['fa', 'Persian'],
+  ['sk', 'Slovak'],
+  ['sv', 'Swedish'],
+  ['hr', 'Croatian'],
+  ['fil', 'Filipino'],
+  ['hu', 'Hungarian'],
+  ['no', 'Norwegian'],
+  ['nb', 'Norwegian'],
+  ['sl', 'Slovenian'],
+  ['ca', 'Catalan'],
+  ['nn', 'Nynorsk'],
+  ['ta', 'Tamil'],
+  ['af', 'Afrikaans'],
+]);
+
+/**
+ * MiniMax's `language_boost` for the text's language: `auto` (detect it) when
+ * it is unknown or one MiniMax does not name. Chinese in Hong Kong and Macau
+ * stays `auto`: it may be read in Cantonese or Mandarin, which the voice decides.
+ */
+function miniMaxLanguageBoost(language?: string): string {
+  if (!language || /^zh-(hk|mo)$/i.test(language)) return 'auto';
+  return MINIMAX_LANGUAGE_BOOSTS.get(primaryLanguage(language)) ?? 'auto';
+}
+
+/**
  * MiniMax TTS implementation (synchronous HTTP API)
  */
 async function generateMiniMaxTTS(
@@ -1162,7 +1244,7 @@ async function generateMiniMaxTTS(
         format: config.format || 'mp3',
         channel: 1,
       },
-      language_boost: 'auto',
+      language_boost: miniMaxLanguageBoost(config.language),
     }),
     signal,
   });
@@ -1325,6 +1407,14 @@ async function generateElevenLabsTTS(
     alaw: 'alaw_8000',
   };
   const outputFormat = outputFormatMap[requestedFormat] || outputFormatMap.mp3;
+  const modelId = config.modelId || 'eleven_multilingual_v2';
+  // `language_code` enforces the language (ISO 639-1, else 639-3); a model that
+  // cannot is said to ignore it, except Multilingual v2, which the API
+  // reference excludes outright, so it is never sent there.
+  const languageCode =
+    config.language && modelId !== 'eleven_multilingual_v2'
+      ? primaryLanguage(config.language)
+      : undefined;
 
   const response = await ttsFetch(
     config,
@@ -1337,7 +1427,8 @@ async function generateElevenLabsTTS(
       },
       body: JSON.stringify({
         text,
-        model_id: config.modelId || 'eleven_multilingual_v2',
+        model_id: modelId,
+        ...(languageCode ? { language_code: languageCode } : {}),
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,
