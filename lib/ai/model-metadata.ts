@@ -257,6 +257,14 @@ const doubaoSeed20Effort: ThinkingCapability = {
 
 const minimaxM3Thinking = toggleCapability('anthropic', false);
 
+// Ollama's OpenAI-compatible endpoint accepts `reasoning_effort`, including
+// `none`. These local models think by default, and an unset effort spends the
+// whole output budget on reasoning before the answer (a 1.5k-token limit came
+// back with empty content). Listing them here is what lets a slot or
+// LLM_THINKING_DISABLED turn that off on the wire; `none` is the default so a
+// local deployment is usable without further configuration.
+const ollamaEffort = effortCapability('openai', ['none', 'low', 'medium', 'high'], 'none');
+
 const openaiGpt56Effort: ThinkingCapability = {
   control: 'effort',
   requestAdapter: 'openai',
@@ -465,6 +473,10 @@ const THINKING_CAPABILITIES: Record<string, ThinkingCapability> = {
   [getModelMetadataKey('xiaomi', 'mimo-v2.6-flash')]: toggleCapability('xiaomi'),
   [getModelMetadataKey('xiaomi', 'mimo-v2.5-pro')]: toggleCapability('xiaomi'),
   [getModelMetadataKey('xiaomi', 'mimo-v2.5')]: toggleCapability('xiaomi'),
+
+  [getModelMetadataKey('ollama', 'gemma4:26b')]: ollamaEffort,
+  [getModelMetadataKey('ollama', 'gemma4:12b')]: ollamaEffort,
+  [getModelMetadataKey('ollama', 'qwen3.5:9b')]: ollamaEffort,
 
   [getModelMetadataKey('lemonade', 'Qwen3-4B-GGUF')]: lemonadeToggleBudget,
   [getModelMetadataKey('lemonade', 'Qwen3.5-4B-GGUF')]: lemonadeToggleBudget,
