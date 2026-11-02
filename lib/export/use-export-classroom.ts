@@ -223,6 +223,7 @@ export async function buildClassroomExportSnapshot(
     name: latestName,
     description: exportStage.description,
     language: exportStage.languageDirective,
+    languageCode: exportStage.languageCode,
     style: exportStage.style,
     videoManifest: exportStage.videoManifest,
     createdAt: exportStage.createdAt,

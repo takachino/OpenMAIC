@@ -21,6 +21,7 @@ import { isGeneratedMediaPlaceholder } from '@/lib/media/media-ref';
 import { putAsset } from '@/lib/media/asset-pool';
 import { isStorageFullFailure } from '@/lib/media/media-failure';
 import type JSZip from 'jszip';
+import { normalizeLanguageCode } from '@openmaic/dsl';
 import type { AssetMeta, Slide } from '@openmaic/dsl';
 import type { Stage } from '@/lib/types/stage';
 
@@ -467,6 +468,7 @@ export function useImportClassroom(onSuccess?: (importedStageId: string) => void
         const importedAgentConfigs: GeneratedAgentConfig[] = (manifest.agents ?? []).map((a, i) =>
           agentConfigFromManifest(a, newAgentIds[i]),
         );
+        const languageCode = normalizeLanguageCode(manifest.stage.languageCode);
 
         const document: AppDocument = {
           stage: {
@@ -474,6 +476,7 @@ export function useImportClassroom(onSuccess?: (importedStageId: string) => void
             name: manifest.stage.name || 'Imported Classroom',
             description: manifest.stage.description,
             languageDirective: manifest.stage.language,
+            ...(languageCode ? { languageCode } : {}),
             style: manifest.stage.style,
             createdAt: manifest.stage.createdAt || now,
             updatedAt: now,

@@ -54,7 +54,10 @@ vi.mock('@/lib/device-storage/database', () => ({
 
 import { useImportClassroom as createImportHarness } from '@/lib/import/use-import-classroom';
 
-async function importArchive(onSuccess = vi.fn()) {
+async function importArchive(
+  onSuccess = vi.fn(),
+  stage: Record<string, unknown> = { name: 'Import test' },
+) {
   const zip = new JSZip();
   zip.file('audio/narration.mp3', 'audio');
   zip.file('media/image.png', 'image');
@@ -62,7 +65,7 @@ async function importArchive(onSuccess = vi.fn()) {
     'manifest.json',
     JSON.stringify({
       formatVersion: 1,
-      stage: { name: 'Import test' },
+      stage,
       agents: [],
       scenes: [
         {
@@ -204,5 +207,29 @@ describe('server-backed import commit boundary', () => {
     expect(onSuccess).toHaveBeenCalledWith(document.stage.id);
     expect(mocks.toastSuccess).toHaveBeenCalledOnce();
     expect(mocks.toastError).not.toHaveBeenCalled();
+  });
+});
+
+describe('classroom import course language', () => {
+  beforeEach(() => {
+    for (const mock of Object.values(mocks)) mock.mockReset();
+    mocks.poolPut.mockResolvedValueOnce('ast_audio').mockResolvedValueOnce('ast_image');
+  });
+
+  it('keeps the course language code the archive names, normalized', async () => {
+    await importArchive(vi.fn(), {
+      name: 'Import test',
+      language: '日本語で授業を行ってください。',
+      languageCode: 'ja',
+    });
+    expect(mocks.save.mock.calls[0][0].stage).toMatchObject({
+      languageDirective: '日本語で授業を行ってください。',
+      languageCode: 'ja-JP',
+    });
+  });
+
+  it('drops a language code that names no language', async () => {
+    await importArchive(vi.fn(), { name: 'Import test', languageCode: 'Japanese' });
+    expect(mocks.save.mock.calls[0][0].stage).not.toHaveProperty('languageCode');
   });
 });

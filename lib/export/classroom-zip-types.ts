@@ -24,7 +24,10 @@ export interface ClassroomManifest {
 export interface ManifestStage {
   name: string;
   description?: string;
+  /** The stage's `languageDirective`. */
   language?: string;
+  /** The stage's `languageCode` (BCP 47), normalized again on import. */
+  languageCode?: string;
   style?: string;
   videoManifest?: VideoManifest;
   createdAt: number;
