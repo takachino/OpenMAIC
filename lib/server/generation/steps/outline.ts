@@ -28,6 +28,7 @@ import {
 } from '@openmaic/generation';
 import type { AgentInfo } from '@openmaic/generation';
 import { DEFAULT_LANGUAGE_DIRECTIVE } from '@openmaic/generation';
+import { normalizeLanguageCode } from '@openmaic/dsl';
 import { MAX_PDF_CONTENT_CHARS, MAX_VISION_IMAGES } from '@/lib/constants/generation';
 import { MAX_OUTLINE_SCENES } from '@/lib/server/generation/outline-schema';
 import { nanoid } from 'nanoid';
@@ -118,6 +119,19 @@ function extractCourseTitle(buffer: string): string | null {
 function extractCourseTitleFromComplete(buffer: string): string | null {
   const match = buffer.match(COURSE_TITLE_RE);
   return match ? normalizeStreamedTitle(match[1]) : null;
+}
+
+// A language tag needs no escapes, so a value with one is not a tag.
+const LANGUAGE_CODE_RE = /"languageCode"\s*:\s*"([^"\\]*)"/;
+
+/**
+ * The course's language code from the complete response, normalized, or
+ * undefined when the model wrote none or an unusable one. Nothing reports it
+ * while the model writes, so it is read once, from the whole response.
+ */
+function extractLanguageCode(buffer: string): string | undefined {
+  const match = buffer.match(LANGUAGE_CODE_RE);
+  return match ? normalizeLanguageCode(match[1]) : undefined;
 }
 
 /**
@@ -339,6 +353,8 @@ export type OutlineEvent =
 export interface OutlineResult {
   outlines: SceneOutline[];
   languageDirective: string;
+  /** The course language as a BCP 47 language-region tag, when the model named a usable one. */
+  languageCode?: string;
   courseTitle: string | undefined;
   taskEngineMode: boolean;
 }
@@ -606,6 +622,7 @@ async function streamOutlines(
   let parsedOutlines: SceneOutline[] = [];
   let languageDirective: string | null = null;
   let courseTitle: string | null = null;
+  let languageCode: string | undefined;
   let lastError: string | undefined;
   let lastCause: unknown;
 
@@ -623,6 +640,7 @@ async function streamOutlines(
       parsedOutlines = [];
       languageDirective = null;
       courseTitle = null;
+      languageCode = undefined;
       const usedOutlineIds = new Set<string>();
       // Consume the FULL stream, not just textStream: errors that
       // happen before the stream starts (a 401, an invalid key) and
@@ -716,6 +734,7 @@ async function streamOutlines(
           // recover it from the now-complete response before finalizing.
           courseTitle = extractCourseTitleFromComplete(fullText);
         }
+        languageCode = extractLanguageCode(fullText);
         break;
       }
 
@@ -796,6 +815,7 @@ async function streamOutlines(
     // Replace sequential gen_img_N/gen_vid_N with globally unique IDs
     outlines: uniquifyMediaElementIds(parsedOutlines),
     languageDirective: languageDirective || DEFAULT_LANGUAGE_DIRECTIVE,
+    languageCode,
     courseTitle: courseTitle || undefined,
     taskEngineMode,
   };

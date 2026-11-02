@@ -3,6 +3,7 @@
  * Also contains outline fallback logic.
  */
 
+import { normalizeLanguageCode } from '@openmaic/dsl';
 import { nanoid } from 'nanoid';
 import { MAX_PDF_CONTENT_CHARS, MAX_VISION_IMAGES } from './constants.js';
 import { parseJsonResponse } from './json-repair.js';
@@ -124,7 +125,13 @@ export async function generateSceneOutlinesFromRequirements(
   aiCall: AICallFn,
   options?: OutlineGenerationOptions,
 ): Promise<
-  GenerationResult<{ languageDirective: string; courseTitle?: string; outlines: SceneOutline[] }>
+  GenerationResult<{
+    languageDirective: string;
+    /** The course language as a BCP 47 language-region tag, when the model named a usable one. */
+    languageCode?: string;
+    courseTitle?: string;
+    outlines: SceneOutline[];
+  }>
 > {
   const logger = options?.logger ?? noopGenerationLogger;
   const context: OutlinePromptContext = { ...options, pdfText, pdfImages };
@@ -144,10 +151,17 @@ export async function generateSceneOutlinesFromRequirements(
   try {
     const response = await aiCall(prompts.system, prompts.user, visionImages);
     const parsed = parseJsonResponse<
-      { languageDirective: string; courseTitle?: string; outlines: SceneOutline[] } | SceneOutline[]
+      | {
+          languageDirective: string;
+          languageCode?: unknown;
+          courseTitle?: string;
+          outlines: SceneOutline[];
+        }
+      | SceneOutline[]
     >(response, { logger });
 
     let languageDirective: string;
+    let languageCode: string | undefined;
     let courseTitle: string | undefined;
     let rawOutlines: SceneOutline[];
 
@@ -156,6 +170,7 @@ export async function generateSceneOutlinesFromRequirements(
       rawOutlines = parsed;
     } else if (parsed && parsed.outlines) {
       languageDirective = parsed.languageDirective || DEFAULT_LANGUAGE_DIRECTIVE;
+      languageCode = normalizeLanguageCode(parsed.languageCode);
       const rawTitle = parsed.courseTitle;
       courseTitle =
         typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim().slice(0, 120) : undefined;
@@ -179,7 +194,15 @@ export async function generateSceneOutlinesFromRequirements(
 
     const result = uniquifyMediaElementIds(enriched);
 
-    return { success: true, data: { languageDirective, courseTitle, outlines: result } };
+    return {
+      success: true,
+      data: {
+        languageDirective,
+        ...(languageCode ? { languageCode } : {}),
+        courseTitle,
+        outlines: result,
+      },
+    };
   } catch (error) {
     return { success: false, error: String(error) };
   }

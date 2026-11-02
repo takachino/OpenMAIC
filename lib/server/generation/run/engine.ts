@@ -836,6 +836,7 @@ async function executeClaimedRun(
     const confirmed: GenerationRunOutline = {
       outlines: result.outlines,
       languageDirective: result.languageDirective,
+      ...(result.languageCode ? { languageCode: result.languageCode } : {}),
       ...(result.courseTitle ? { courseTitle: result.courseTitle } : {}),
       taskEngineMode: result.taskEngineMode,
     };
@@ -872,7 +873,7 @@ async function executeClaimedRun(
   };
 
   const resolveAgents = async (): Promise<AgentsOutput> => {
-    const { outlines, languageDirective, courseTitle, taskEngineMode } = outline();
+    const { outlines, languageDirective, languageCode, courseTitle, taskEngineMode } = outline();
     const name = courseTitle || topicFromRequirement(input.requirement);
     const presets = async (agentIds: readonly string[]): Promise<GenerationRunAgentsResult> => {
       const configs = await services.presetAgents(owner, agentIds);
@@ -966,6 +967,7 @@ async function executeClaimedRun(
       interactiveMode: input.interactive,
       taskEngineMode,
       languageDirective,
+      ...(languageCode ? { languageCode } : {}),
       agentIds: result.agentIds,
       ...(result.generatedAgentConfigs
         ? { generatedAgentConfigs: result.generatedAgentConfigs }

@@ -185,6 +185,7 @@ function fakeServices(overrides: Partial<RunStepServices> = {}) {
       return {
         outlines: OUTLINES,
         languageDirective: 'Use English.',
+        languageCode: 'en-US',
         courseTitle: 'Plants',
         taskEngineMode: false,
       };
@@ -525,6 +526,7 @@ describe.skipIf(!contractUrl)('generation runs on PostgreSQL', () => {
       interactiveMode: false,
       taskEngineMode: false,
       languageDirective: 'Use English.',
+      languageCode: 'en-US',
       agentIds: ['gen-teacher', 'gen-student'],
       generatedAgentConfigs: GENERATED_AGENTS,
     });

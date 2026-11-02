@@ -106,6 +106,8 @@ export interface GenerationRunInput {
 export interface GenerationRunOutline {
   outlines: SceneOutline[];
   languageDirective: string;
+  /** The course language as a BCP 47 language-region tag, when the outline named one. */
+  languageCode?: string;
   courseTitle?: string;
   /** The server-effective task-engine mode the outline was generated in. */
   taskEngineMode: boolean;

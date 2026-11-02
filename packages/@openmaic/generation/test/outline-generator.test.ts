@@ -45,6 +45,49 @@ describe('generateSceneOutlinesFromRequirements', () => {
     expect(result.data?.outlines[0]?.order).toBe(1);
   });
 
+  test('returns the language code the model names, normalized', async () => {
+    const aiCall: AICallFn = vi.fn(async () =>
+      JSON.stringify({
+        languageDirective: '日本語で授業を行ってください。',
+        languageCode: 'ja',
+        courseTitle: 'Python入門',
+        outlines: [baseOutline],
+      }),
+    );
+
+    const result = await generateSceneOutlinesFromRequirements(
+      { requirement: 'Pythonを教えて' },
+      undefined,
+      undefined,
+      aiCall,
+    );
+
+    expect(result.data?.languageCode).toBe('ja-JP');
+  });
+
+  test.each([[undefined], ['Japanese'], [42]])(
+    'omits an unusable language code %j',
+    async (languageCode) => {
+      const aiCall: AICallFn = vi.fn(async () =>
+        JSON.stringify({
+          languageDirective: 'Teach in English.',
+          languageCode,
+          outlines: [baseOutline],
+        }),
+      );
+
+      const result = await generateSceneOutlinesFromRequirements(
+        { requirement: 'Teach photosynthesis' },
+        undefined,
+        undefined,
+        aiCall,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).not.toHaveProperty('languageCode');
+    },
+  );
+
   test('integrates repairable JSON parsing', async () => {
     const response = `{
       "languageDirective": "Teach in English.",

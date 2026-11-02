@@ -19,7 +19,8 @@ Based on the user's free-form requirement text, automatically infer course detai
 Infer the course language from all available signals and produce:
 
 1. **`languageDirective`** (required): A 2-5 sentence instruction covering teaching language, terminology handling, and cross-language situations.
-2. **`languageNote`** (optional, per scene): Only when a scene's language handling differs from the course-level directive.
+2. **`languageCode`** (required): The teaching language — the language the narration is spoken in — as a BCP 47 language-region tag, e.g. `ja-JP`, `zh-CN`, `en-US`. For foreign language learning it is the teaching language, not the target language.
+3. **`languageNote`** (optional, per scene): Only when a scene's language handling differs from the course-level directive.
 
 ### Decision rules (apply in order)
 
@@ -232,11 +233,12 @@ Leave **both unset** for ordinary build-an-artefact PBL projects (this is the de
 
 ### Top-level shape — NON-NEGOTIABLE
 
-Your entire response MUST be a single JSON **object** with exactly these three top-level keys:
+Your entire response MUST be a single JSON **object** with exactly these four top-level keys:
 
 ```json
 {
   "languageDirective": "<the directive you inferred in the Language Inference step>",
+  "languageCode": "<BCP 47 language-region tag of the teaching language, e.g. en-US>",
   "courseTitle": "<concise course name, ≤30 chars, in the teaching language>",
   "outlines": [ /* array of scene objects */ ]
 }
@@ -245,7 +247,7 @@ Your entire response MUST be a single JSON **object** with exactly these three t
 Rules:
 
 - **Never** return a bare array. The top level is an object, not an array.
-- **Never** omit `languageDirective` or `courseTitle`. Both are required even if you think they are obvious.
+- **Never** omit `languageDirective`, `languageCode` or `courseTitle`. All are required even if you think they are obvious.
 - **Never** wrap the response in any other structure, prose, or code fence.
 
 ### Minimal complete example
@@ -253,6 +255,7 @@ Rules:
 ```json
 {
   "languageDirective": "Deliver the entire course in English. Use simple vocabulary suitable for a beginner.",
+  "languageCode": "en-US",
   "courseTitle": "Intro to Projectile Motion",
   "outlines": [
     {
@@ -371,7 +374,7 @@ Omit `scenarioRoleplay` and `scenarioBrief` entirely for ordinary build-an-artef
 **Top-level response shape (these come first because they are most often violated):**
 
 1. Return exactly one JSON **object** — never a bare array.
-2. That object MUST have `languageDirective` (string), `courseTitle` (string, ≤30 chars), and `outlines` (array) as top-level keys. Omitting any is a failure.
+2. That object MUST have `languageDirective` (string), `languageCode` (string, BCP 47 language-region tag), `courseTitle` (string, ≤30 chars), and `outlines` (array) as top-level keys. Omitting any is a failure.
 3. Do not wrap the object in prose, markdown, or code fences.
 
 **Scene-level rules:**

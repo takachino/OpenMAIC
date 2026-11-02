@@ -103,6 +103,22 @@ describe('outline step', () => {
     expect(mocks.capabilities).toHaveBeenCalledWith(null);
   });
 
+  it('records the language code the model names, normalized', async () => {
+    streams(JSON.stringify({ ...JSON.parse(OUTLINE_TEXT), languageCode: 'en' }));
+    const result = await generateOutlines({ ...body, model }, stepContext([]));
+    expect(result.languageCode).toBe('en-US');
+  });
+
+  it('records no language code when the model writes none or an unusable one', async () => {
+    streams(OUTLINE_TEXT, JSON.stringify({ ...JSON.parse(OUTLINE_TEXT), languageCode: 'English' }));
+    expect((await generateOutlines({ ...body, model }, stepContext([]))).languageCode).toBe(
+      undefined,
+    );
+    expect((await generateOutlines({ ...body, model }, stepContext([]))).languageCode).toBe(
+      undefined,
+    );
+  });
+
   it('retries an empty answer, reporting each retry, and then fails with the last error', async () => {
     streams('');
     const events: OutlineEvent[] = [];
