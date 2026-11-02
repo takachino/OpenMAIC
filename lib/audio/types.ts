@@ -151,6 +151,14 @@ export interface TTSProviderConfig {
    * `speedRange` does not imply the opposite.
    */
   supportsSpeed?: boolean;
+  /**
+   * `true` when each voice speaks only the language its catalogue entry names:
+   * the voice, not the text, selects the pronunciation rules, so a voice of
+   * another language garbles a course. Speech for a course then takes a voice
+   * in its language (see `courseLanguageVoice`). Omitted means the voices speak
+   * any language the text is in.
+   */
+  voiceSetsLanguage?: boolean;
 }
 
 /**

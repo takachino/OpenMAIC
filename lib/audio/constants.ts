@@ -282,6 +282,8 @@ export const TTS_PROVIDERS: Record<BuiltInTTSProviderId, TTSProviderConfig> = {
     requiresApiKey: true,
     defaultBaseUrl: 'https://{region}.tts.speech.microsoft.com',
     icon: '/logos/azure.svg',
+    // A neural voice speaks its locale: the voice name sets the SSML language.
+    voiceSetsLanguage: true,
     models: [],
     defaultModelId: '',
     voices: [
@@ -1233,6 +1235,11 @@ export const TTS_PROVIDERS: Record<BuiltInTTSProviderId, TTSProviderConfig> = {
     requiresApiKey: false,
     defaultBaseUrl: 'http://localhost:13305/v1',
     icon: '/logos/lemonade.svg',
+    // Kokoro picks its pronunciation rules from the voice's prefix (`jf_` is
+    // Japanese). The servers it runs on spell a language override differently
+    // (Lemonade takes espeak names, Kokoro-FastAPI single letters, each
+    // garbling the other's), so the voice is what follows the course language.
+    voiceSetsLanguage: true,
     models: [{ id: 'kokoro-v1', name: 'Kokoro v1' }],
     defaultModelId: 'kokoro-v1',
     voices: [
