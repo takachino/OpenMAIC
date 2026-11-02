@@ -75,6 +75,83 @@ describe('browser narration locale', () => {
     engine.stop();
   });
 
+  describe('a line without audio, when a server provider narrates', () => {
+    const lineWithoutAudio = (getSpeechLanguage?: () => string | undefined) =>
+      new PlaybackEngine(
+        [
+          {
+            id: 'scene',
+            stageId: 'stage',
+            type: 'slide',
+            order: 1,
+            actions: [{ id: 'speech', type: 'speech', text: '変数は箱です。' }],
+          } as Scene,
+        ],
+        {
+          execute: vi.fn(async () => {}),
+          clearEffects: vi.fn(),
+          resetPlaybackVisualState: vi.fn(),
+        } as unknown as ActionEngine,
+        {
+          play: vi.fn(async () => false),
+          onEnded: vi.fn(),
+          stop: vi.fn(),
+          pause: vi.fn(),
+        } as unknown as AudioPlayer,
+        { getSpeechLanguage },
+      );
+
+    function stubBrowserSpeech(spoken: SpeechSynthesisUtterance[]) {
+      vi.stubGlobal(
+        'SpeechSynthesisUtterance',
+        class {
+          lang = '';
+          voice: unknown = null;
+          constructor(public text: string) {}
+        },
+      );
+      vi.stubGlobal('window', {
+        speechSynthesis: {
+          // A browser voice whose id is the server voice's: it is still not picked.
+          getVoices: () => [{ voiceURI: 'jf_alpha', lang: 'en-US' }],
+          cancel() {},
+          speak: (utterance: SpeechSynthesisUtterance) => spoken.push(utterance),
+        },
+      });
+    }
+
+    it('is read by browser speech in the course language, not in the server voice', async () => {
+      const spoken: SpeechSynthesisUtterance[] = [];
+      stubBrowserSpeech(spoken);
+      setModelSettingsViewForTests({ tts: { registryId: 'lemonade-tts' } });
+      useSettingsStore.setState({ ttsVoice: 'jf_alpha', ttsVoiceProviderId: 'lemonade-tts' });
+      await i18n.changeLanguage('en-US');
+      const engine = lineWithoutAudio(() => 'ja-JP');
+      engine.start();
+      await vi.waitFor(() => expect(spoken).toHaveLength(1));
+      expect(spoken[0].text).toBe('変数は箱です。');
+      expect(spoken[0].lang).toBe('ja-JP');
+      expect(spoken[0].voice).toBeNull();
+      engine.stop();
+    });
+
+    it('waits out its reading time in silence when speech is off', async () => {
+      vi.useFakeTimers();
+      try {
+        const spoken: SpeechSynthesisUtterance[] = [];
+        stubBrowserSpeech(spoken);
+        setModelSettingsViewForTests({ tts: null });
+        const engine = lineWithoutAudio(() => 'ja-JP');
+        engine.start();
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(spoken).toHaveLength(0);
+        engine.stop();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it('speaks each chunk in the course language ahead of the runtime language', async () => {
     const spoken: SpeechSynthesisUtterance[] = [];
     vi.stubGlobal(

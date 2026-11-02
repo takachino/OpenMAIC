@@ -666,11 +666,14 @@ export class PlaybackEngine {
           .then((audioStarted) => {
             if (!this.isCurrentGeneration(generation)) return;
             if (!audioStarted) {
-              // No pre-generated audio — try browser-native TTS only when it is
-              // the selected provider AND actually enabled (opt-in, #665).
+              // No pre-generated audio — browser speech reads the line while
+              // speech is on (the tts slot names a provider, #665). With a
+              // server provider that is a line it has not voiced (one from a
+              // course narrated in the browser, say), read in the course
+              // language rather than waited out in silence.
               if (
                 hasText &&
-                ttsSelection()?.providerId === 'browser-native-tts' &&
+                ttsSelection() &&
                 typeof window !== 'undefined' &&
                 window.speechSynthesis
               ) {
@@ -824,8 +827,11 @@ export class PlaybackEngine {
     }
 
     const settings = useSettingsStore.getState();
-    // The user's voice when it was picked for browser speech.
-    const selectedVoice = ttsSelection()?.voice;
+    // The user's voice when it was picked for browser speech; a server
+    // provider's voice is not one the browser has.
+    const selection = ttsSelection();
+    const selectedVoice =
+      selection?.providerId === 'browser-native-tts' ? selection.voice : undefined;
     const chunkText = this.browserTTSChunks[this.browserTTSChunkIndex];
     const utterance = new SpeechSynthesisUtterance(chunkText);
 
