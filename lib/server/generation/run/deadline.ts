@@ -18,8 +18,11 @@ export const STEP_DEADLINES_MS = {
   agentProfiles: 120_000,
   /** Per attempt. */
   sceneContent: 300_000,
-  /** Per attempt. */
-  sceneActions: 60_000,
+  /**
+   * Per attempt. A local model that generates actions at ~30 tokens/s needs
+   * more than the minute a hosted one does for the same step.
+   */
+  sceneActions: 180_000,
   /** Per clip attempt (POST /api/generate/tts). */
   narrationClip: 30_000,
 } as const;
