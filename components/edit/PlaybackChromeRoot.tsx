@@ -41,6 +41,7 @@ import { loadCursor, saveCursor, type PlaybackCursor } from '@/lib/playback/curs
 import { ActionEngine } from '@/lib/action/engine';
 import { createAudioPlayer } from '@/lib/utils/audio-player';
 import { useDiscussionTTS } from '@/lib/hooks/use-discussion-tts';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import { useWidgetIframeStore } from '@/lib/store/widget-iframe';
 import { MEDIA_CONTROL } from '@/lib/interactive/media-bridge';
 import type { AudioIndicatorState } from '@/components/roundtable/audio-indicator';
@@ -916,6 +917,10 @@ export const PlaybackChromeRoot = forwardRef<PlaybackChromeRootHandle, PlaybackC
             return ids.includes(agentId);
           },
           getPlaybackSpeed: () => useSettingsStore.getState().playbackSpeed || 1,
+          getSpeechLanguage: () => {
+            const { stage, scenes } = useStageStore.getState();
+            return courseSpeechLanguage(stage, scenes);
+          },
           onComplete: () => {
             // lectureSpeech intentionally NOT cleared — last sentence stays visible
             // until scene transition (auto-play) or user restarts. Scene change

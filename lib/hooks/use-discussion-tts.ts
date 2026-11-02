@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSettingsStore } from '@/lib/store/settings';
+import { useStageStore } from '@/lib/store/stage';
+import { courseSpeechLanguage } from '@/lib/audio/speech-language';
 import { useTTSSelection } from '@/lib/audio/use-tts-selection';
 import { slotTTSProvidersConfig } from '@/lib/audio/tts-selection';
 import { useBrowserTTS } from '@/lib/hooks/use-browser-tts';
@@ -100,6 +102,10 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
   onAudioStateChangeRef.current = onAudioStateChange;
   const processQueueRef = useRef<() => void>(() => {});
   const agentBindingKeysRef = useRef(new Map<string, string>());
+  // Browser speech reads discussion lines in the open course's language.
+  const stage = useStageStore((s) => s.stage);
+  const scenes = useStageStore((s) => s.scenes);
+  const courseLang = useMemo(() => courseSpeechLanguage(stage, scenes), [stage, scenes]);
 
   const {
     speak: browserSpeak,
@@ -109,6 +115,7 @@ export function useDiscussionTTS({ enabled, agents, onAudioStateChange }: Discus
   } = useBrowserTTS({
     rate: ttsSpeed,
     lang: locale,
+    courseLang,
     onEnd: () => {
       if (currentProviderRef.current !== 'browser-native-tts' || !isPlayingRef.current) return;
       currentItemRef.current = null;

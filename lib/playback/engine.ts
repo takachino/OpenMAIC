@@ -49,7 +49,7 @@ import {
 import { useCanvasStore } from '@/lib/store/canvas';
 import { useSettingsStore } from '@/lib/store/settings';
 import { ttsSelection } from '@/lib/audio/tts-selection';
-import { detectSpeechLang } from '@/lib/audio/browser-tts-preview';
+import { resolveSpeechLang } from '@/lib/audio/speech-language';
 import { createLogger } from '@/lib/logger';
 import i18n from '@/lib/i18n/config';
 
@@ -849,11 +849,16 @@ export class PlaybackEngine {
       }
     }
     if (!voiceFound) {
-      // No usable voice configured — detect text language so the browser
-      // auto-selects an appropriate voice. For Vietnamese additionally bind an
-      // installed vi voice when one exists, since browsers otherwise fall back
-      // to an English voice reading Vietnamese text.
-      utterance.lang = detectSpeechLang(chunkText, i18n.language);
+      // No usable voice configured — speak in the course language, or detect
+      // the text language without one, so the browser auto-selects an
+      // appropriate voice. For Vietnamese additionally bind an installed vi
+      // voice when one exists, since browsers otherwise fall back to an
+      // English voice reading Vietnamese text.
+      utterance.lang = resolveSpeechLang(
+        chunkText,
+        this.callbacks.getSpeechLanguage?.(),
+        i18n.language,
+      );
       if (utterance.lang === 'vi-VN') {
         const viVoice = voices.find((v) => v.lang?.toLowerCase().startsWith('vi'));
         if (viVoice) {

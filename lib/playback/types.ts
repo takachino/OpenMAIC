@@ -63,5 +63,8 @@ export interface PlaybackEngineCallbacks {
   /** Get current playback speed multiplier (e.g. 1, 1.5, 2) */
   getPlaybackSpeed?: () => number;
 
+  /** The course's narration language (BCP 47) for browser speech; undefined when unknown. */
+  getSpeechLanguage?: () => string | undefined;
+
   onComplete?: () => void;
 }

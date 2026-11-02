@@ -74,4 +74,71 @@ describe('browser narration locale', () => {
     expect(spoken[2].lang).toBe('en-GB');
     engine.stop();
   });
+
+  it('speaks each chunk in the course language ahead of the runtime language', async () => {
+    const spoken: SpeechSynthesisUtterance[] = [];
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        lang = '';
+        constructor(public text: string) {}
+      },
+    );
+    vi.stubGlobal('window', {
+      speechSynthesis: {
+        getVoices: () => [{ voiceURI: 'english', lang: 'en-GB' }],
+        cancel() {},
+        speak: (utterance: SpeechSynthesisUtterance) => spoken.push(utterance),
+      },
+    });
+    setModelSettingsViewForTests({ tts: { registryId: 'browser-native-tts' } });
+    useSettingsStore.setState({ ttsVoice: 'default', ttsVoiceProviderId: 'browser-native-tts' });
+    await i18n.changeLanguage('zh-CN');
+    let courseLanguage: string | undefined = 'ja-JP';
+    const engine = new PlaybackEngine(
+      [
+        {
+          id: 'scene',
+          stageId: 'stage',
+          type: 'slide',
+          order: 1,
+          // The first chunk is Han characters only, which alone reads as Chinese.
+          actions: [{ id: 'speech', type: 'speech', text: '正解！これで終わりです。' }],
+        } as Scene,
+      ],
+      {
+        execute: vi.fn(async () => {}),
+        clearEffects: vi.fn(),
+        resetPlaybackVisualState: vi.fn(),
+      } as unknown as ActionEngine,
+      {
+        play: vi.fn(async () => false),
+        onEnded: vi.fn(),
+        stop: vi.fn(),
+        pause: vi.fn(),
+      } as unknown as AudioPlayer,
+      { getSpeechLanguage: () => courseLanguage },
+    );
+    engine.start();
+    await vi.waitFor(() => expect(spoken).toHaveLength(1));
+    expect(spoken[0].lang).toBe('ja-JP');
+    (spoken[0].onend as () => void)?.();
+    await vi.waitFor(() => expect(spoken).toHaveLength(2));
+    expect(spoken[1].lang).toBe('ja-JP');
+    engine.stop();
+
+    // A course without a language reads the chunk by its characters, as before.
+    courseLanguage = undefined;
+    engine.start();
+    await vi.waitFor(() => expect(spoken).toHaveLength(3));
+    expect(spoken[2].lang).toBe('zh-CN');
+    engine.stop();
+
+    courseLanguage = 'ja-JP';
+    useSettingsStore.setState({ ttsVoice: 'english' });
+    engine.start();
+    await vi.waitFor(() => expect(spoken).toHaveLength(4));
+    expect(spoken[3].lang).toBe('en-GB');
+    engine.stop();
+  });
 });

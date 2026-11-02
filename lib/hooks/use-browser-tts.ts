@@ -18,6 +18,8 @@ export interface UseBrowserTTSOptions {
   volume?: number; // 0 to 1
   /** Language fallback for text detection; an explicit voice keeps its own language. */
   lang?: string;
+  /** The course's narration language (BCP 47), ahead of text detection when known. */
+  courseLang?: string;
 }
 
 export function useBrowserTTS(options: UseBrowserTTSOptions = {}) {
@@ -29,6 +31,7 @@ export function useBrowserTTS(options: UseBrowserTTSOptions = {}) {
     pitch = 1.0,
     volume = 1.0,
     lang = 'zh-CN',
+    courseLang,
   } = options;
 
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -76,7 +79,7 @@ export function useBrowserTTS(options: UseBrowserTTSOptions = {}) {
       utterance.pitch = pitch;
       utterance.volume = volume;
       // 讨论发言与预览、课堂朗读共用语言和音色优先级，避免在不同播放路径之间切回中文。
-      const resolved = resolveBrowserVoice(availableVoices, voiceURI ?? '', text, lang);
+      const resolved = resolveBrowserVoice(availableVoices, voiceURI ?? '', text, lang, courseLang);
       utterance.lang = resolved.lang;
       if (resolved.voice) utterance.voice = resolved.voice;
 
@@ -111,7 +114,7 @@ export function useBrowserTTS(options: UseBrowserTTSOptions = {}) {
       utteranceRef.current = utterance;
       window.speechSynthesis.speak(utterance);
     },
-    [rate, pitch, volume, lang, availableVoices, onStart, onEnd, onError],
+    [rate, pitch, volume, lang, courseLang, availableVoices, onStart, onEnd, onError],
   );
 
   const pause = useCallback(() => {
