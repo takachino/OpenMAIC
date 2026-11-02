@@ -151,6 +151,12 @@ export interface Stage {
   updatedAt: number;
   // Stage metadata
   languageDirective?: string;
+  /**
+   * The language the course is taught and narrated in, as the BCP 47
+   * language-region tag {@link normalizeLanguageCode} produces (`ja-JP`,
+   * `zh-TW`). Absent on courses generated before the language was recorded.
+   */
+  languageCode?: string;
   style?: string;
   // Whiteboard data
   whiteboard?: Whiteboard[];
@@ -176,6 +182,28 @@ export interface Stage {
    * vocational.
    */
   taskEngineMode?: boolean;
+}
+
+/**
+ * The `Stage.languageCode` form of a language tag: language and region only,
+ * the region filled in with the language's likely one when the tag names none
+ * (`ja` → `ja-JP`, `zh-Hant` → `zh-TW`). Undefined for anything that does not
+ * name a known language, so a malformed value never reaches a speech engine.
+ */
+export function normalizeLanguageCode(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const tag = value.trim().replace(/_/g, '-');
+  if (!tag) return undefined;
+  let locale: Intl.Locale;
+  try {
+    locale = new Intl.Locale(tag);
+  } catch {
+    return undefined;
+  }
+  // `und` (undetermined) would maximize to en-US; longer subtags are not languages.
+  if (!/^[a-z]{2,3}$/.test(locale.language ?? '') || locale.language === 'und') return undefined;
+  const { language, region } = locale.maximize();
+  return region ? `${language}-${region}` : undefined;
 }
 
 /**
