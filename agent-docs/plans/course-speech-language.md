@@ -3,7 +3,7 @@
 日本語の講座の一部の文が中国語の声で読まれる問題を、講座の言語を記録して読み上げに使うことで根本から直す。
 
 - 作成: 2026-11-02
-- 状態: 第 1 段階と第 2 段階を実装済み (フォーク takachino/OpenMAIC の main にコミット)。TTS は Kokoro-FastAPI。音声のない行のブラウザ読み上げは、利用者が耳で確かめる
+- 状態: 第 1 段階と第 2 段階を実装済み (フォーク takachino/OpenMAIC の main にコミット)。TTS は Kokoro-FastAPI。音声のない行のブラウザ読み上げも、利用者が耳で確かめた (2026-11-06、本家 v1.4.1 の取り込み後)
 
 ## 背景
 
@@ -212,7 +212,7 @@ Kokoro の `lang_code` を実際に試した結果:
 - [x] 8. ドキュメント: `openmaic.example.yml` の `defaultVoice` の説明
 - [x] 9. 全体確認: 型チェック、lint、関係するテスト、HEAD との比較。実機では Kokoro-FastAPI で英語の講座の声と、「Python入門」の音声のない行を確かめる
   - アプリ全体: HEAD のクリーンな worktree (`openmaic.yml` も `.env.local` もない状態) で、変更の前後に全テストを流して比べた (PG テストも使い捨てのコンテナで流した)。HEAD では 7 ファイル 47 件が失敗する (`tests/runtime/chat-storage`、`tests/quiz/runtime`、`tests/utils/course-thumbnail-cache`、`tests/api/export-video-render-mixed-pool`、`tests/generation/browser-entry`、`tests/agent-runtime/scene-preview-self-contained`、`tests/agent-runtime/chart-schema-lockstep`)。変更後に増えたのは `tests/audio/qwen-voice-clone.test.ts` の 1 件で、言語が分からないときの `language_type` を `Chinese` 固定から `Auto` に変えたためだった。期待値を `Auto` に直し、ほかに新しい失敗はない。
-  - 未確認 (利用者に依頼): 「Python入門」の音声のない行が、ブラウザ読み上げで日本語として聞こえること。
+  - 確認済み (2026-11-06): 本家 v1.4.1 の取り込み後に、利用者が「Python入門」を聞き、日本語のまま読まれることを確かめた。58 行のうちサーバーの音声があるのは「変数とデータ型」の 6 行だけで、残る 52 行は音声のない行としてブラウザ読み上げで読まれる。
   - 型チェック (`tsc --noEmit`)、ESLint、Prettier は通過。
   - 生成時のランの PG テスト (`generation-runs.pg.test.ts`、`generation-run-hooks.pg.test.ts`) は、使い捨ての PostgreSQL コンテナで 86 件すべて通過。新しいテストは、エンジンの変更を戻すと失敗することも確かめた。
   - この環境 (リポジトリ直下の `openmaic.yml` と `.env.local` がある) では、`tests/server/tts-route-missing-key.test.ts` の 2 件と `tests/agent-runtime/owner-extraction-options.test.ts` の 5 件が HEAD でも失敗する。変更とは無関係。
@@ -244,3 +244,4 @@ Kokoro の `lang_code` を実際に試した結果:
 - 2026-11-02: 第 2 段階を詳細化した。各プロバイダーの言語の指定を公式の文書で確かめ、Kokoro の `lang_code` を 2 つのサーバーで試した。利用者の判断で、合わない声は講座の言語の声に替え、音声のない行はブラウザ読み上げで補う。
 - 2026-11-02: 第 2 段階を TDD で実装し、全体確認まで終えた。
 - 2026-11-03: 第 2 段階を 5 つのコミットに分けてフォークの main に積み、push した。
+- 2026-11-06: 本家 v1.4.1 を取り込んだ (`upstream-v1.4.1-merge.md`。`@openmaic/dsl` は 0.13.1、`@openmaic/generation` は 0.3.30 になった)。その後、利用者が「Python入門」を聞き、音声のない行も含めて日本語のまま読まれることを確かめた。
