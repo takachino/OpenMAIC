@@ -246,7 +246,9 @@
       "toolCallingRequired": "Classroom chat requires a model that supports tool calling. Select one for the classroom slot in Settings → Course Model Config, or contact your administrator if this setting is managed.",
       "geminiNativeRequired": "Gemini classroom interaction requires Google native. Add Google (google preset) in Settings → Model Services, then select it for “Classroom” in Course Model Config. If this configuration is managed, contact your administrator.",
       "emptyAgentResponses": "Agents returned empty responses; discussion stopped. Try again or check your model settings.",
-      "streamInterrupted": "Stream ended unexpectedly; discussion didn't complete. Please try again."
+      "streamInterrupted": "Stream ended unexpectedly; discussion didn't complete. Please try again.",
+      "teacherNoResponse": "The teacher didn't respond. Please try again.",
+      "teacherIncomplete": "The teacher couldn't finish responding. Please try again."
     },
     "elementReference": {
       "whiteboardChanged": "The referenced whiteboard element has changed or is no longer available. Select it again or remove the reference before sending.",
@@ -356,6 +358,9 @@
     "proMode": "Pro",
     "undo": "Undo",
     "redo": "Redo",
+    "courseHistory": {
+      "stepExpired": "That step can no longer be undone"
+    },
     "delete": "Delete",
     "title": "Editing · {{type}}",
     "unsupportedScene": "{{type}} is not editable yet",
@@ -481,8 +486,6 @@
       "addSlide": "Add slide",
       "duplicate": "Duplicate",
       "delete": "Delete",
-      "deleted": "Deleted",
-      "undo": "Undo",
       "copySuffix": "(copy)",
       "untitledSlide": "Untitled slide",
       "collapse": "Collapse rail",
@@ -2900,6 +2903,7 @@
       "closeDetails": "Close task details",
       "milestoneSteps": "Milestone learning steps",
       "enterStep": "Continue to {{step}}",
+      "enterMilestone": "Enter next milestone",
       "planArtifact": "Open PLAN.md in the IDE to read the current plan. Discuss, review and approve it in the conversation.",
       "codeArtifact": "Inspect the current project files in the IDE. Review the implementation and save edits before continuing.",
       "taskTitle": "Current task",
@@ -3025,8 +3029,11 @@
       "completedMilestones": "Milestones completed",
       "completedSteps": "Steps completed",
       "concepts": "Concepts practiced",
-      "skills": "Skills put into practice",
-      "practiceNotice": "These records show what you practiced, not a certification of mastery.",
+      "projectResults": "What you built",
+      "workflow": "How you worked",
+      "decisionQuestion": "Decision question",
+      "decisionChoice": "Your decision",
+      "decisionReason": "Your rationale",
       "viewWorkbench": "View read-only workbench",
       "completedTitle": "Project completed",
       "completionHint": "Your work is saved. Explore your learning report or revisit the workbench.",
@@ -3174,16 +3181,7 @@
       "testsPassed": "Behavior tests passed",
       "decisionsLabel": "Decisions made",
       "quizLabel": "Quiz",
-      "skillsMetric": "Skills practiced",
-      "skillsSection": "Challenges completed",
       "conceptsLabel": "Unlocked concepts",
-      "skillLabels": {
-        "decisions": "Making engineering decisions",
-        "planReview": "Reviewing a plan",
-        "codeReview": "Reviewing implementation",
-        "verification": "Verifying behavior with tests",
-        "reflection": "Reflecting from evidence"
-      },
       "workshop": "Vibe Coding Workshop",
       "entryLabel": "Vibe Coding Workshop introductory course"
     },

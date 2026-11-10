@@ -246,7 +246,9 @@
       "toolCallingRequired": "教室チャットにはツール呼び出しに対応したモデルが必要です。設定 → コースモデル設定で教室スロットに対応モデルを選択してください。管理者が設定を管理している場合は、管理者にお問い合わせください。",
       "geminiNativeRequired": "Gemini の教室チャットには Google ネイティブが必要です。設定 → モデルサービスで Google（google プリセット）を追加し、コースモデル設定の「教室」で選択してください。管理された設定の場合は管理者にお問い合わせください。",
       "emptyAgentResponses": "エージェントが空の応答を返したため、ディスカッションを停止しました。再試行するかモデル設定をご確認ください。",
-      "streamInterrupted": "ストリームが予期せず終了し、ディスカッションが完了しませんでした。再度お試しください。"
+      "streamInterrupted": "ストリームが予期せず終了し、ディスカッションが完了しませんでした。再度お試しください。",
+      "teacherNoResponse": "先生から応答がありませんでした。もう一度お試しください。",
+      "teacherIncomplete": "先生の応答が完了しませんでした。もう一度お試しください。"
     },
     "elementReference": {
       "whiteboardChanged": "参照したホワイトボードの要素が変更されたか、利用できません。再選択するか、参照を削除してから送信してください。",
@@ -356,6 +358,9 @@
     "proMode": "プロモード",
     "undo": "元に戻す",
     "redo": "やり直し",
+    "courseHistory": {
+      "stepExpired": "この操作は元に戻せなくなりました"
+    },
     "delete": "削除",
     "title": "編集 · {{type}}",
     "unsupportedScene": "{{type}}はまだ編集できません",
@@ -481,8 +486,6 @@
       "addSlide": "スライドを追加",
       "duplicate": "複製",
       "delete": "削除",
-      "deleted": "削除しました",
-      "undo": "元に戻す",
       "copySuffix": "（コピー）",
       "untitledSlide": "無題のスライド",
       "collapse": "サイドを折りたたむ",
@@ -2900,6 +2903,7 @@
       "closeDetails": "Close task details",
       "milestoneSteps": "Milestone learning steps",
       "enterStep": "Continue to {{step}}",
+      "enterMilestone": "次のステージへ",
       "planArtifact": "Open PLAN.md in the IDE to read the current plan. Discuss, review and approve it in the conversation.",
       "codeArtifact": "Inspect the current project files in the IDE. Review the implementation and save edits before continuing.",
       "taskTitle": "Current task",
@@ -3025,8 +3029,11 @@
       "completedMilestones": "完了した段階",
       "completedSteps": "完了したステップ",
       "concepts": "実践した概念",
-      "skills": "実践したスキル",
-      "practiceNotice": "記録は実践の内容を示すもので、習熟を認定するものではありません。",
+      "projectResults": "このプロジェクトで作ったもの",
+      "workflow": "取り組みの流れ",
+      "decisionQuestion": "判断する問い",
+      "decisionChoice": "あなたの決定",
+      "decisionReason": "決定の理由",
       "viewWorkbench": "読み取り専用の作業画面",
       "completedTitle": "プロジェクト完了",
       "completionHint": "作品と学習記録を保存しました。レポートや作業画面で振り返れます。",
@@ -3174,16 +3181,7 @@
       "testsPassed": "動作テストに合格",
       "decisionsLabel": "実装の選択",
       "quizLabel": "クイズ",
-      "skillsMetric": "実践したスキル",
-      "skillsSection": "クリアした課題",
       "conceptsLabel": "出会った知識",
-      "skillLabels": {
-        "decisions": "設計の判断",
-        "planReview": "計画のレビュー",
-        "codeReview": "実装のレビュー",
-        "verification": "テストによる検証",
-        "reflection": "記録に基づく振り返り"
-      },
       "workshop": "Vibe Coding ワークショップ",
       "entryLabel": "Vibe Coding ワークショップ入門コース"
     },

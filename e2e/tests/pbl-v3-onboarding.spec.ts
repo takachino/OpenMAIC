@@ -1741,3 +1741,173 @@ test.describe('native mobile touch reading', () => {
     await touch.detach();
   });
 });
+
+for (const checker of ['tests', 'quiz'] as const) {
+  test(`keeps following the conversation when entering the ${checker} check without a composer`, async ({
+    page,
+    learningEvents,
+  }) => {
+    const fixture = await project(page, learningEvents, {
+      started: true,
+      application: false,
+      openingText: readingParagraphs(),
+    });
+    await expect(page.locator('[data-pbl-tour="replay"]')).toBeEnabled();
+    const viewport = page.locator('.pbl-conversation-scroll');
+    const composer = page.locator('[data-pbl-tour="composer"]');
+    const distance = () =>
+      viewport.evaluate((el) => el.scrollHeight - el.clientHeight - el.scrollTop);
+    await expect(composer).toBeVisible();
+    await expect.poll(distance).toBeLessThanOrEqual(1);
+    const height = await viewport.evaluate((el) => el.clientHeight);
+
+    fixture.view.stage = { kind: 'check', checker } as LearningView['stage'];
+    fixture.view.state.position.stageIndex = checker === 'tests' ? 4 : 5;
+    fixture.view.actions = checker === 'tests' ? ['evaluate'] : ['quiz'];
+    if (checker === 'quiz')
+      fixture.view.questions = [{ q: 'What did you build?', options: ['A list', 'A timer'] }];
+    fixture.view.revision++;
+    await fixture.publish();
+    await expect(composer).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Current task', exact: true })).toBeVisible();
+    await expect.poll(() => viewport.evaluate((el) => el.clientHeight)).toBeGreaterThan(height);
+    await expect.poll(distance).toBeLessThanOrEqual(1);
+
+    const reply = {
+      id: 'check-reply',
+      speaker: 'mentor' as const,
+      status: 'running' as const,
+      parts: [{ kind: 'text' as const, id: 'body', text: '', streaming: true }],
+    };
+    fixture.view.conversation = [
+      {
+        id: '0',
+        speaker: 'discussion',
+        status: 'succeeded',
+        parts: [{ kind: 'text', id: '0', text: fixture.view.messages[0].text }],
+      },
+      reply,
+    ];
+    fixture.view.busy = true;
+    const append = async (paragraph: string) => {
+      reply.parts[0].text += `\n\n${paragraph}\n\n` + 'The check is progressing.\n\n'.repeat(8);
+      fixture.view.revision++;
+      await fixture.publish();
+      await expect(viewport).toContainText(paragraph);
+    };
+    await append('Check output starts.');
+    await expect.poll(distance).toBeLessThanOrEqual(1);
+    await append('Check output continues.');
+    await expect.poll(distance).toBeLessThanOrEqual(1);
+
+    const following = await viewport.evaluate((el) => el.scrollTop);
+    await viewport.hover();
+    await page.mouse.wheel(0, -180);
+    await expect
+      .poll(() => viewport.evaluate((el) => el.scrollTop))
+      .toBeCloseTo(following - 180, 0);
+    const latest = page.getByTestId('pbl-conversation-scroll-button');
+    await expect(latest).toBeVisible();
+    const reading = await viewport.evaluate((el) => el.scrollTop);
+    await append('More output while reading.');
+    await expect.poll(() => viewport.evaluate((el) => el.scrollTop)).toBeCloseTo(reading, 0);
+
+    await page.mouse.wheel(0, (await distance()) - 40);
+    await expect.poll(distance).toBeCloseTo(40, 0);
+    await expect(latest).toHaveCount(0);
+    await append('More output after returning near the bottom.');
+    await expect.poll(distance).toBeLessThanOrEqual(1);
+  });
+}
+
+test('independent columns, narrow assistant and a single scrolling tab row', async ({
+  page,
+  learningEvents,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 850 });
+  const f = await project(page, learningEvents, { started: true, locale: 'zh-CN' });
+  await expect(page.locator('[data-pbl-tour="replay"]')).toBeEnabled();
+  const names = [
+    'PLAN.md',
+    'DialogueService.java',
+    'CourseChoices.java',
+    'ChatEndpoint.java',
+    'Json.java',
+    'Application.java',
+  ];
+  f.view.files = names;
+  f.view.revision++;
+  await f.publish();
+  const ide = page.getByTestId('pbl-ide');
+  await expect(ide.locator('.monaco-editor')).toBeVisible();
+  const tabs = ide.getByRole('tablist');
+  for (const name of names.slice(1)) await ide.getByRole('button', { name, exact: true }).click();
+  await expect(tabs.getByRole('tab', { name: 'Application.java', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  const measure = async () => ({
+    ide: (await ide.boundingBox())!,
+    files: (await ide.getByRole('navigation', { name: '项目文件', exact: true }).boundingBox())!,
+    app: (await page.getByTestId('pbl-application-panel').boundingBox())!,
+    assistant: (await page.getByTestId('pbl-assistant').boundingBox())!,
+  });
+  const drag = async (separator: ReturnType<Page['getByRole']>, delta: number) => {
+    const b = (await separator.boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + Math.min(120, b.height / 2));
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2 + delta, b.y + Math.min(120, b.height / 2), {
+      steps: 14,
+    });
+    await page.mouse.up();
+  };
+  // Hero expansion and platform metrics can leave the tree near its 45% max.
+  // Start away from that constraint so shrinking the IDE tests pixel preservation.
+  const initial = await measure();
+  await drag(
+    page.getByRole('separator', { name: '调整文件目录宽度', exact: true }),
+    initial.ide.width * 0.24 - initial.files.width,
+  );
+  await expect
+    .poll(async () => {
+      const layout = await measure();
+      return layout.files.width / layout.ide.width;
+    })
+    .toBeCloseTo(0.24, 1);
+  const before = await measure();
+  await page.screenshot({ path: testInfo.outputPath('initial.png') });
+  const dividers = page.getByRole('separator', { name: '调整工作区与助手宽度', exact: true });
+  await drag(dividers.last(), 100);
+  const outer = await measure();
+  await page.screenshot({ path: testInfo.outputPath('outer-drag.png') });
+  // The tree must still fit below its max after the planned 60px IDE shrink.
+  expect(outer.files.width).toBeLessThan((outer.ide.width - 60) * 0.45 - 2);
+  await drag(dividers.first(), -60);
+  const inner = await measure();
+  await page.screenshot({ path: testInfo.outputPath('inner-drag.png') });
+  await ide.screenshot({ path: testInfo.outputPath('tabs.png') });
+  const tabRows = await tabs
+    .getByRole('tab')
+    .evaluateAll(
+      (elements) => new Set(elements.map((e) => Math.round(e.getBoundingClientRect().y))).size,
+    );
+  const tabOverflow = await tabs.evaluate((e) => ({ scroll: e.scrollWidth, width: e.clientWidth }));
+  {
+    expect(Math.abs(outer.ide.width - before.ide.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(outer.files.width - before.files.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(inner.assistant.width - outer.assistant.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(inner.files.width - outer.files.width)).toBeLessThanOrEqual(2);
+    expect(tabRows).toBe(1);
+    expect(tabOverflow.scroll).toBeGreaterThan(tabOverflow.width);
+    await tabs.evaluate((e) => (e.scrollLeft = 0));
+    await tabs.getByRole('tab', { name: 'PLAN.md', exact: true }).click();
+    await ide.getByRole('button', { name: 'Application.java', exact: true }).click();
+    await expect.poll(() => tabs.evaluate((e) => e.scrollLeft)).toBeGreaterThan(0);
+  }
+  const width = await page.getByTestId('pbl-workbench-split').evaluate((e) => e.clientWidth);
+  await drag(dividers.last(), inner.assistant.width - width * 0.22);
+  const narrow = await measure();
+  await page.screenshot({ path: testInfo.outputPath('narrow.png') });
+  expect(narrow.assistant.width).toBeGreaterThan(200);
+  expect(narrow.assistant.width / width).toBeLessThan(0.23);
+});

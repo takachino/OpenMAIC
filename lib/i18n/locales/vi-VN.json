@@ -246,7 +246,9 @@
       "toolCallingRequired": "Trò chuyện trong lớp cần mô hình hỗ trợ gọi công cụ. Hãy chọn mô hình đó cho ô lớp học trong Cài đặt → Cấu hình mô hình khóa học, hoặc liên hệ quản trị viên nếu cài đặt này do quản trị viên quản lý.",
       "geminiNativeRequired": "Tương tác với Gemini cần Google gốc. Thêm Google (cấu hình sẵn google) trong Cài đặt → Dịch vụ mô hình, rồi chọn cho “Lớp học” trong Cấu hình mô hình khóa học. Nếu cấu hình do quản trị viên quản lý, hãy liên hệ quản trị viên.",
       "emptyAgentResponses": "Các tác nhân trả về nội dung rỗng nên thảo luận đã dừng. Hãy thử lại hoặc kiểm tra cài đặt model.",
-      "streamInterrupted": "Luồng dữ liệu dừng bất ngờ, thảo luận chưa hoàn tất. Vui lòng thử lại."
+      "streamInterrupted": "Luồng dữ liệu dừng bất ngờ, thảo luận chưa hoàn tất. Vui lòng thử lại.",
+      "teacherNoResponse": "Giáo viên không phản hồi. Vui lòng thử lại.",
+      "teacherIncomplete": "Giáo viên chưa hoàn tất phản hồi. Vui lòng thử lại."
     },
     "elementReference": {
       "whiteboardChanged": "Phần tử bảng trắng đã thay đổi hoặc không còn khả dụng. Hãy chọn lại hoặc xóa tham chiếu trước khi gửi.",
@@ -356,6 +358,9 @@
     "proMode": "Pro",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
+    "courseHistory": {
+      "stepExpired": "Không thể hoàn tác bước này nữa"
+    },
     "delete": "Xóa",
     "title": "Đang sửa · {{type}}",
     "unsupportedScene": "{{type}} chưa sửa được",
@@ -481,8 +486,6 @@
       "addSlide": "Thêm slide",
       "duplicate": "Nhân đôi",
       "delete": "Xóa",
-      "deleted": "Đã xóa",
-      "undo": "Hoàn tác",
       "copySuffix": "(bản sao)",
       "untitledSlide": "Slide chưa có tiêu đề",
       "collapse": "Thu gọn thanh bên",
@@ -2900,6 +2903,7 @@
       "closeDetails": "Close task details",
       "milestoneSteps": "Milestone learning steps",
       "enterStep": "Continue to {{step}}",
+      "enterMilestone": "Giai đoạn sau",
       "planArtifact": "Open PLAN.md in the IDE to read the current plan. Discuss, review and approve it in the conversation.",
       "codeArtifact": "Inspect the current project files in the IDE. Review the implementation and save edits before continuing.",
       "taskTitle": "Current task",
@@ -3025,8 +3029,11 @@
       "completedMilestones": "Giai đoạn hoàn thành",
       "completedSteps": "Bước hoàn thành",
       "concepts": "Khái niệm đã thực hành",
-      "skills": "Kỹ năng đã thực hành",
-      "practiceNotice": "Các bản ghi cho thấy nội dung đã thực hành, không chứng nhận mức độ thành thạo.",
+      "projectResults": "Những gì bạn đã xây dựng",
+      "workflow": "Quá trình thực hiện",
+      "decisionQuestion": "Câu hỏi cần quyết định",
+      "decisionChoice": "Quyết định của bạn",
+      "decisionReason": "Lý do của bạn",
       "viewWorkbench": "Xem không gian làm việc chỉ đọc",
       "completedTitle": "Dự án đã hoàn thành",
       "completionHint": "Công việc đã được lưu. Xem báo cáo hoặc quay lại không gian làm việc.",
@@ -3174,16 +3181,7 @@
       "testsPassed": "Đã vượt qua kiểm thử hành vi",
       "decisionsLabel": "Lựa chọn đã đưa ra",
       "quizLabel": "Bài kiểm tra",
-      "skillsMetric": "Kỹ năng đã thực hành",
-      "skillsSection": "Thử thách đã hoàn thành",
       "conceptsLabel": "Kiến thức đã mở khóa",
-      "skillLabels": {
-        "decisions": "Đưa ra quyết định kỹ thuật",
-        "planReview": "Xem xét kế hoạch",
-        "codeReview": "Xem xét phần triển khai",
-        "verification": "Kiểm chứng bằng kiểm thử",
-        "reflection": "Suy ngẫm từ bằng chứng"
-      },
       "workshop": "Hội thảo Vibe Coding",
       "entryLabel": "Khóa nhập môn hội thảo Vibe Coding"
     },

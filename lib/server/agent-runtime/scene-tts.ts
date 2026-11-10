@@ -20,7 +20,7 @@ import { runFailureCode, type RunFailureErrorCode } from '@/lib/server/generatio
 import { SCENE_MAX_RETRIES, withRouteRetry } from '@/lib/server/generation/run/retry';
 import { isUpstreamQuotaExhausted } from '@/lib/server/llm-error-response';
 import { createSemaphore } from '@/lib/utils/concurrency';
-import type { ConfiguredTTSVoice, TTSProviderId } from '@/lib/audio/types';
+import type { ConfiguredTTSVoice, TTSProviderId, TTSSpeaker } from '@/lib/audio/types';
 import { BROWSER_NATIVE_TTS_PROVIDER_ID } from '@/lib/audio/provider-enablement';
 import { courseLanguageVoice, speaksCourseLanguage } from '@/lib/audio/voice-language';
 import type { LegacySpeechAction, SpeechAction } from '@/lib/types/action';
@@ -263,6 +263,23 @@ function narratorVoice(roster: SceneTtsInput['roster']) {
   return roster?.find((agent) => agent.role === 'teacher' && agent.voiceConfig)?.voiceConfig;
 }
 
+/**
+ * Who narrates, for a provider that designs a voice from a description: the
+ * same teacher narratorVoice picks (the first bound one, else the first).
+ */
+function narratorSpeaker(roster: SceneTtsInput['roster']): TTSSpeaker | undefined {
+  const teacher =
+    roster?.find((agent) => agent.role === 'teacher' && agent.voiceConfig) ??
+    roster?.find((agent) => agent.role === 'teacher');
+  if (!teacher) return undefined;
+  return {
+    ...(teacher.name ? { name: teacher.name } : {}),
+    ...(teacher.role ? { role: teacher.role } : {}),
+    ...(teacher.persona ? { persona: teacher.persona } : {}),
+    ...(teacher.voiceDesign ? { voiceDesign: teacher.voiceDesign } : {}),
+  };
+}
+
 function voiceReport(
   roster: SceneTtsInput['roster'],
   providerId: string,
@@ -386,6 +403,7 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
   const voice =
     chosenVoice &&
     courseLanguageVoice(providerId, chosenVoice, input.language, activeConnection.voices);
+  const speaker = narratorSpeaker(input.roster);
   const model =
     activeConnection.modelId ??
     (DEFAULT_TTS_MODELS[providerId as keyof typeof DEFAULT_TTS_MODELS] || '');
@@ -452,6 +470,7 @@ export async function synthesizeSceneNarration(input: SceneTtsInput): Promise<Sc
                       ...(input.language ? { language: input.language } : {}),
                       // The provider's own options (a VoxCPM backend, say).
                       providerOptions: adapterOptions(activeConnection),
+                      ...(speaker ? { speaker } : {}),
                       signal: input.signal,
                     },
                     speech.text,
