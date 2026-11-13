@@ -27,13 +27,13 @@
 - [x] 変更領域と音声対応のテスト、必要な単体・DB テスト、アプリビルドを実行する。失敗は本家タグまたは取り込み前と比較する。
 - [x] Conventional Commits 形式でマージコミットを作成する (`a147a677`)。
 - [x] 最終的な検証結果を記録する。
-- [ ] main に統合して origin/main に push し、作業ツリーと履歴を確認する。
+- [x] main に統合して origin/main に push し、作業ツリーと履歴を確認する (`02a53adf..9fd0541c`)。
 
 ## 検証結果
 
 - `git diff --numstat v1.5.0-rc.1 HEAD` (取り込み前) と `git diff --numstat v1.5.0-rc.2` (マージ後) は全 73 ファイルで完全一致した。計画書はこの比較時点では未追跡。
 - `PlaybackChromeRoot.tsx` の本家タグとの差は、`courseSpeechLanguage` の import と `getSpeechLanguage` の設定だけ。競合も追加の実装修正もない。
-- 設定なしで検証するため、マージコミットを作業ブランチに作成してから、検証専用の worktree を作る。main への統合と push は検証後。
+- 設定なしで検証するため、マージコミットを作業ブランチに作成してから、検証専用の worktree を作成した。main への統合と push は検証後に行った。
 - `pnpm install --frozen-lockfile`: 本体と検証用 worktree の両方で成功。全ローカルパッケージの再ビルドも成功し、追跡ファイルの書き換えはない。検証用 worktree に `render-service` の依存も `npm ci` で準備した。
 - `pnpm check`、`pnpm lint`、`tsc --noEmit`、i18n (12 ロケール)、Node 要件、内部依存の版範囲、開始時点の main を基準としたパッケージ版番号チェックは成功。lint はエラー 0 件、前回と同じ警告 19 件。
 - `pnpm build`: 成功。検証用 worktree と使い捨て DB の組み合わせで実行した。Turbopack の警告は 60 件 (Edge ランタイムとファイル追跡に関する警告)。
@@ -45,6 +45,7 @@
 - フォーク独自のパッケージテスト (Node 24): DSL の `test/language-code.test.ts` は 22 件、generation の `test/outline-generator.test.ts` と `test/outline-prompt.test.ts` は計 22 件、すべて成功。
 - 変更された PG テスト (`owner-claims.pg.test.ts` と `runtime.pg.test.ts`): 334 件中 332 件成功。Java 関連の 2 件が失敗した。本家タグの `runtime.pg.test.ts` も同じ 2 件が失敗し、失敗したテスト名の集合が完全一致した。コンテナ `openmaic-rc2-check` (ポート 55439) を使用し、既存の開発用 DB には接続していない。
 - 未実施: E2E 全体、変更のないパッケージの全テスト、全 PG 契約テスト、Docker イメージのビルド、実モデルへの生成リクエスト、音声の聞き取り。今回のコード修正は上流の取り込みだけで、独自の競合解消・追加修正はない。
+- 2026-11-13: main を `9fd0541c` に早送りし、origin/main に push した。作業ツリーに変更がなく、main と origin/main が一致することを確認した。検証用の 2 つの worktree と使い捨て DB コンテナは削除済み。テストの JSON とログは `/private/tmp/openmaic-rc2-*` に残した。
 
 ## 戻し方
 
